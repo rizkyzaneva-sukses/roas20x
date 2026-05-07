@@ -16,10 +16,23 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# DATABASE_URL passed as build-arg by Easypanel — used for db push + seed
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
+
 RUN npx prisma generate
+
+# Sync schema to DB and seed (silently skip if DB unavailable)
+RUN if [ -n "$DATABASE_URL" ]; then \
+      npx prisma db push && \
+      node prisma/seed.js || echo "Seed skipped"; \
+    else \
+      echo "No DATABASE_URL — skipping db push"; \
+    fi
+
 RUN npm run build
 
-# Production runner
+# Production runner — no prisma CLI needed
 FROM base AS runner
 RUN apk add --no-cache openssl
 WORKDIR /app
@@ -30,18 +43,12 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh && chown nextjs:nodejs ./entrypoint.sh
 
 USER nextjs
 
@@ -49,4 +56,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["./entrypoint.sh"]
+CMD ["node", "server.js"]
