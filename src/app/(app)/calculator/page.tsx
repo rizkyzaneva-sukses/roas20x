@@ -483,6 +483,10 @@ export default function CalculatorPage() {
                 <tr className="border-b border-[#162d58] bg-[#060d1f]">
                   <th className="text-left py-2.5 px-3 text-slate-500 text-xs font-semibold uppercase sticky left-0 bg-[#060d1f] z-10">Produk</th>
                   <th className="text-center py-2.5 px-3 text-slate-500 text-xs font-semibold uppercase whitespace-nowrap">Harga Jual</th>
+                  <th className="text-center py-2.5 px-3 text-slate-500 text-xs font-semibold uppercase whitespace-nowrap">
+                    Harga Bersih
+                    <div className="text-[10px] font-normal text-slate-600">setelah fee</div>
+                  </th>
                   {results[0] && !results[0].error && results[0].tiers.map((tier, i) => (
                     <th key={i} className="text-center py-2.5 px-2 text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                       {tier.label}
@@ -523,6 +527,13 @@ export default function CalculatorPage() {
                           ) : (
                             <span className="text-slate-300 text-xs whitespace-nowrap">{fmt(r.hargaJual)}</span>
                           )}
+                        </td>
+
+                        {/* Harga Bersih (Net Revenue) */}
+                        <td className="py-2.5 px-3 text-center">
+                          <span className="text-emerald-400 text-xs whitespace-nowrap font-medium">
+                            {fmt(Math.round(r.hargaJual * (1 - r.feePersen / 100)))}
+                          </span>
                         </td>
 
                         {/* ROAS per tier */}
