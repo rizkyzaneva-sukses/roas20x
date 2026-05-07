@@ -12,6 +12,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: '🏠', roles: ['OWNER', 'MANAGER', 'USER'] },
   { href: '/brands', label: 'Manajemen Brand', icon: '🏷️', roles: ['OWNER', 'MANAGER'] },
   { href: '/users', label: 'Manajemen User', icon: '👥', roles: ['OWNER'] },
+  { href: '/panduan', label: 'Panduan', icon: '📖', roles: ['OWNER', 'MANAGER', 'USER'] },
 ]
 
 export default function Sidebar({ session }: SidebarProps) {
