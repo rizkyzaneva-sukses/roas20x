@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     session.userId = user.id
     session.username = user.username
     session.nama = user.nama
-    session.role = user.role as 'OWNER' | 'STAFF'
+    session.role = user.role as 'OWNER' | 'USER'
     session.brandIds = user.brands.map(b => b.brandId)
     await session.save()
 

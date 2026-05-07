@@ -4,7 +4,7 @@ export interface SessionData {
   userId: number
   username: string
   nama: string
-  role: 'OWNER' | 'STAFF'
+  role: 'OWNER' | 'MANAGER' | 'USER'
   brandIds: number[]
 }
 

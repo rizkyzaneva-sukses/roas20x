@@ -8,9 +8,9 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { href: '/calculator', label: 'Kalkulator ROAS', icon: '📊', roles: ['OWNER', 'STAFF'] },
-  { href: '/dashboard', label: 'Dashboard', icon: '🏠', roles: ['OWNER', 'STAFF'] },
-  { href: '/brands', label: 'Manajemen Brand', icon: '🏷️', roles: ['OWNER'] },
+  { href: '/calculator', label: 'Kalkulator ROAS', icon: '📊', roles: ['OWNER', 'MANAGER', 'USER'] },
+  { href: '/dashboard', label: 'Dashboard', icon: '🏠', roles: ['OWNER', 'MANAGER', 'USER'] },
+  { href: '/brands', label: 'Manajemen Brand', icon: '🏷️', roles: ['OWNER', 'MANAGER'] },
   { href: '/users', label: 'Manajemen User', icon: '👥', roles: ['OWNER'] },
 ]
 
@@ -61,7 +61,7 @@ export default function Sidebar({ session }: SidebarProps) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-slate-200 truncate">{session.nama}</p>
-            <span className={session.role === 'OWNER' ? 'badge-owner' : 'badge-staff'}>
+            <span className={session.role === 'OWNER' ? 'badge-owner' : session.role === 'MANAGER' ? 'badge-manager' : 'badge-staff'}>
               {session.role}
             </span>
           </div>
