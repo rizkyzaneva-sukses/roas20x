@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-interface Brand { id: number; nama: string; feeDefaultPersen: number; _count: { products: number; users: number } }
+interface Tier { label: string; targetMargin: number }
+interface Brand { id: number; nama: string; feeDefaultPersen: number; tiers: Tier[]; _count: { products: number; users: number } }
 interface User { id: number; nama: string; username: string; role: string }
-interface BrandDetail { id: number; nama: string; feeDefaultPersen: number; users: { user: User }[] }
+interface BrandDetail { id: number; nama: string; feeDefaultPersen: number; tiers: Tier[]; users: { user: User }[] }
 
 export default function BrandsPage() {
   const router = useRouter()
@@ -17,6 +18,11 @@ export default function BrandsPage() {
   const [productForm, setProductForm] = useState({ nama: '', hpp: '', hargaJualDefault: '' })
   const [loading, setLoading] = useState(false)
   const [products, setProducts] = useState<{ id: number; nama: string; hargaJualDefault: number; hpp: number }[]>([])
+
+  // Tiers editing state
+  const [editingTiers, setEditingTiers] = useState(false)
+  const [tempTiers, setTempTiers] = useState<Tier[]>([])
+  const [savingTiers, setSavingTiers] = useState(false)
 
   useEffect(() => {
     loadBrands()
@@ -38,6 +44,7 @@ export default function BrandsPage() {
     const [detail, prods] = await Promise.all([detailRes.json(), prodRes.json()])
     setSelected(detail)
     setProducts(prods)
+    setEditingTiers(false)
   }
 
   async function handleAddBrand(e: React.FormEvent) {
@@ -90,6 +97,48 @@ export default function BrandsPage() {
     openBrand({ ...selected, _count: { products: 0, users: 0 } } as Brand)
   }
 
+  function startEditTiers() {
+    if (!selected) return
+    setTempTiers(selected.tiers?.length ? [...selected.tiers] : [])
+    setEditingTiers(true)
+  }
+
+  function cancelEditTiers() {
+    setEditingTiers(false)
+    setTempTiers([])
+  }
+
+  function addTempTier() {
+    setTempTiers(t => [...t, { label: 'Target Baru', targetMargin: 0 }])
+  }
+
+  function updateTempTier(i: number, field: keyof Tier, val: string | number) {
+    setTempTiers(t => t.map((tier, idx) => idx === i ? { ...tier, [field]: val } : tier))
+  }
+
+  function removeTempTier(i: number) {
+    setTempTiers(t => t.filter((_, idx) => idx !== i))
+  }
+
+  async function saveTiers() {
+    if (!selected) return
+    setSavingTiers(true)
+    try {
+      const res = await fetch(`/api/brands/${selected.id}/tiers`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tiers: tempTiers }),
+      })
+      if (res.ok) {
+        setSelected(s => s ? { ...s, tiers: tempTiers } : s)
+        setBrands(prev => prev.map(b => b.id === selected.id ? { ...b, tiers: tempTiers } : b))
+        setEditingTiers(false)
+      }
+    } finally {
+      setSavingTiers(false)
+    }
+  }
+
   const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
 
   return (
@@ -127,6 +176,63 @@ export default function BrandsPage() {
                   <button onClick={() => setModal('assign')} className="btn-secondary text-xs py-1.5">👥 Assign User</button>
                   <button onClick={() => setModal('add-product')} className="btn-primary text-xs py-1.5">+ Produk</button>
                 </div>
+              </div>
+
+              {/* Target Margin Tiers */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Target Margin Tiers</h3>
+                  {!editingTiers && (
+                    <button onClick={startEditTiers} className="btn-secondary text-xs py-1 px-3">✏️ Edit Tiers</button>
+                  )}
+                </div>
+
+                {editingTiers ? (
+                  <div className="space-y-2">
+                    {tempTiers.map((tier, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          className="input max-w-[150px]"
+                          value={tier.label}
+                          onChange={e => updateTempTier(i, 'label', e.target.value)}
+                          placeholder="Label"
+                        />
+                        <input
+                          type="number"
+                          className="input w-18 text-center"
+                          value={tier.targetMargin}
+                          min={0}
+                          max={90}
+                          step={0.5}
+                          onChange={e => updateTempTier(i, 'targetMargin', parseFloat(e.target.value) || 0)}
+                        />
+                        <span className="text-slate-400 text-sm">%</span>
+                        {i > 0 && (
+                          <button onClick={() => removeTempTier(i)} className="text-red-500 hover:text-red-400 text-xs">✕</button>
+                        )}
+                      </div>
+                    ))}
+                    <button onClick={addTempTier} className="text-slate-400 hover:text-slate-300 text-xs mt-1">+ Tambah Tier</button>
+                    <div className="flex gap-2 mt-3">
+                      <button onClick={saveTiers} disabled={savingTiers} className="btn-primary text-xs py-1.5 px-4">
+                        {savingTiers ? 'Menyimpan...' : 'Simpan Tiers'}
+                      </button>
+                      <button onClick={cancelEditTiers} className="btn-secondary text-xs py-1.5 px-4">Batal</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {(selected.tiers ?? []).map((tier, i) => (
+                      <div key={i} className="bg-[#060d1f] border border-[#162d58] rounded-lg px-3 py-2 text-center min-w-[90px]">
+                        <p className="text-xs text-slate-500 mb-0.5">{tier.label}</p>
+                        <p className="text-sm font-bold text-slate-200">
+                          {tier.targetMargin === 0 ? 'BEP' : `${tier.targetMargin}%`}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Products */}

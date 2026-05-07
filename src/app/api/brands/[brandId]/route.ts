@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireOwner } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+function parseTiers(tiersJson: string) {
+  try { return JSON.parse(tiersJson) } catch { return [] }
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ brandId: string }> }) {
   const { error } = await requireOwner()
   if (error) return error
@@ -14,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ bra
     },
   })
   if (!brand) return NextResponse.json({ error: 'Brand tidak ditemukan' }, { status: 404 })
-  return NextResponse.json(brand)
+  return NextResponse.json({ ...brand, tiers: parseTiers(brand.tiersJson) })
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ brandId: string }> }) {
@@ -29,7 +33,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ bran
       ...(body.feeDefaultPersen !== undefined && { feeDefaultPersen: body.feeDefaultPersen }),
     },
   })
-  return NextResponse.json(brand)
+  return NextResponse.json({ ...brand, tiers: parseTiers(brand.tiersJson) })
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ brandId: string }> }) {

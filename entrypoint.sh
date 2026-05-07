@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "Running database migrations..."
-npx prisma migrate deploy
+echo "Syncing database schema..."
+npx prisma db push
 
 echo "Seeding database..."
 node prisma/seed.js || echo "Seed skipped (may already exist)"

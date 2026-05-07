@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
-interface Brand { id: number; nama: string; feeDefaultPersen: number }
+interface Brand { id: number; nama: string; feeDefaultPersen: number; tiers: Tier[] }
 interface Product { id: number; nama: string; hargaJualDefault: number }
 interface Tier { label: string; targetMargin: number }
 interface TierResult { label: string; targetMargin: number; roasMinimal: number | null }
@@ -17,7 +17,6 @@ interface CalcResult {
   statusAktual: 'safe' | 'warn' | 'danger' | null
   error?: string
 }
-
 interface ProductRow {
   id: string
   brandId: number
@@ -31,7 +30,7 @@ const DEFAULT_TIERS: Tier[] = [
   { label: 'BEP', targetMargin: 0 },
   { label: 'Margin Tipis', targetMargin: 5 },
   { label: 'Margin Sedang', targetMargin: 15 },
-  { label: 'Margin Tebal', targetMargin: 25 },
+  { label: 'Proporsional', targetMargin: 25 },
 ]
 
 function fmt(n: number) { return 'Rp ' + n.toLocaleString('id-ID') }
@@ -45,9 +44,7 @@ function StatusBadge({ status, roas }: { status: string | null; roas: number | n
     danger: { cls: 'bg-red-900/40 border-red-700/50 text-red-400', label: '❌ Rugi' },
   }
   const { cls, label } = map[status as keyof typeof map]
-  return (
-    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>
-  )
+  return <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>
 }
 
 function ROASValue({ val, bep }: { val: number | null; bep: number | null }) {
@@ -63,13 +60,28 @@ export default function CalculatorPage() {
   const [rows, setRows] = useState<ProductRow[]>([
     { id: '1', brandId: 0, productId: null, hargaJual: '', feePersen: '18', roasAktual: '' }
   ])
-  const [tiers, setTiers] = useState<Tier[]>(DEFAULT_TIERS)
+  const [role, setRole] = useState<'OWNER' | 'STAFF' | null>(null)
+
+  // Tiers state: which brand's tiers are displayed, and the editable copy
+  const [tiersBrandId, setTiersBrandId] = useState<number | null>(null)
+  const [editTiers, setEditTiers] = useState<Tier[]>(DEFAULT_TIERS)
+  const [tierSaving, setTierSaving] = useState(false)
+  const [tierSaved, setTierSaved] = useState(false)
+
   const [results, setResults] = useState<CalcResult[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch('/api/brands').then(r => r.json()).then(setBrands)
+    Promise.all([
+      fetch('/api/session').then(r => r.json()),
+      fetch('/api/brands').then(r => r.json()),
+    ]).then(([sess, brandsData]) => {
+      if (sess.role) setRole(sess.role)
+      if (Array.isArray(brandsData)) {
+        setBrands(brandsData.map((b: Brand) => ({ ...b, tiers: b.tiers?.length ? b.tiers : DEFAULT_TIERS })))
+      }
+    })
   }, [])
 
   const fetchProducts = useCallback(async (brandId: number) => {
@@ -78,6 +90,11 @@ export default function CalculatorPage() {
     const data = await res.json()
     setProducts(p => ({ ...p, [brandId]: data }))
   }, [products])
+
+  function getBrandTiers(brandId: number): Tier[] {
+    if (brandId === tiersBrandId) return editTiers
+    return brands.find(b => b.id === brandId)?.tiers ?? DEFAULT_TIERS
+  }
 
   function addRow() {
     setRows(r => [...r, { id: Date.now().toString(), brandId: 0, productId: null, hargaJual: '', feePersen: '18', roasAktual: '' }])
@@ -99,6 +116,11 @@ export default function CalculatorPage() {
           const brand = brands.find(b => b.id === brandId)
           if (brand) updated.feePersen = brand.feeDefaultPersen.toString()
           fetchProducts(brandId)
+          // Set tier display to this brand if none selected yet
+          if (!tiersBrandId) {
+            setTiersBrandId(brandId)
+            setEditTiers(brand?.tiers ?? DEFAULT_TIERS)
+          }
         }
       }
       if (field === 'productId') {
@@ -109,16 +131,44 @@ export default function CalculatorPage() {
     }))
   }
 
+  function switchTierBrand(brandId: number) {
+    const brand = brands.find(b => b.id === brandId)
+    setTiersBrandId(brandId)
+    setEditTiers(brand?.tiers ?? DEFAULT_TIERS)
+    setTierSaved(false)
+  }
+
   function addTier() {
-    setTiers(t => [...t, { label: 'Target Baru', targetMargin: 0 }])
+    setEditTiers(t => [...t, { label: 'Target Baru', targetMargin: 0 }])
+    setTierSaved(false)
   }
 
   function updateTier(i: number, field: keyof Tier, val: string | number) {
-    setTiers(t => t.map((tier, idx) => idx === i ? { ...tier, [field]: val } : tier))
+    setEditTiers(t => t.map((tier, idx) => idx === i ? { ...tier, [field]: val } : tier))
+    setTierSaved(false)
   }
 
   function removeTier(i: number) {
-    setTiers(t => t.filter((_, idx) => idx !== i))
+    setEditTiers(t => t.filter((_, idx) => idx !== i))
+    setTierSaved(false)
+  }
+
+  async function saveTiers() {
+    if (!tiersBrandId) return
+    setTierSaving(true)
+    try {
+      const res = await fetch(`/api/brands/${tiersBrandId}/tiers`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tiers: editTiers }),
+      })
+      if (res.ok) {
+        setBrands(prev => prev.map(b => b.id === tiersBrandId ? { ...b, tiers: editTiers } : b))
+        setTierSaved(true)
+      }
+    } finally {
+      setTierSaving(false)
+    }
   }
 
   async function handleHitung() {
@@ -135,7 +185,7 @@ export default function CalculatorPage() {
           productId: r.productId,
           hargaJual: parseFloat(r.hargaJual),
           feePersen: parseFloat(r.feePersen),
-          tiers,
+          tiers: getBrandTiers(r.brandId),
           roasAktual: r.roasAktual ? parseFloat(r.roasAktual) : undefined,
         }))
       }
@@ -155,6 +205,10 @@ export default function CalculatorPage() {
   }
 
   function reset() { setResults(null); setError('') }
+
+  // Brands yang sedang dipilih di rows (untuk switch tier brand)
+  const selectedBrandIds = [...new Set(rows.map(r => r.brandId).filter(Boolean))]
+  const tiersBrand = brands.find(b => b.id === tiersBrandId)
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -180,7 +234,6 @@ export default function CalculatorPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {/* Brand */}
               <div>
                 <label className="label">Brand</label>
                 <select
@@ -193,7 +246,6 @@ export default function CalculatorPage() {
                 </select>
               </div>
 
-              {/* Produk */}
               <div>
                 <label className="label">Produk</label>
                 <select
@@ -209,7 +261,6 @@ export default function CalculatorPage() {
                 </select>
               </div>
 
-              {/* Harga Jual */}
               <div>
                 <label className="label">Harga Jual (Rp)</label>
                 <input
@@ -221,7 +272,6 @@ export default function CalculatorPage() {
                 />
               </div>
 
-              {/* Fee */}
               <div>
                 <label className="label">Fee Platform (%)</label>
                 <input
@@ -235,7 +285,6 @@ export default function CalculatorPage() {
               </div>
             </div>
 
-            {/* ROAS Aktual */}
             <div className="max-w-xs">
               <label className="label">ROAS Aktual dari Dashboard (opsional)</label>
               <input
@@ -253,38 +302,93 @@ export default function CalculatorPage() {
 
       {/* Target Margin Tiers */}
       <div className="card space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Target Margin</h2>
-          <button onClick={addTier} className="btn-secondary text-xs py-1 px-3">+ Tambah Tier</button>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Target Margin</h2>
+            {tiersBrand && (
+              <span className="text-xs text-[#e85d26] font-semibold">{tiersBrand.nama}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Switch brand for tiers (if multiple brands selected) */}
+            {selectedBrandIds.length > 1 && (
+              <select
+                className="input text-xs py-1 px-2"
+                value={tiersBrandId ?? ''}
+                onChange={e => switchTierBrand(parseInt(e.target.value))}
+              >
+                {selectedBrandIds.map(id => {
+                  const b = brands.find(x => x.id === id)
+                  return <option key={id} value={id}>{b?.nama ?? id}</option>
+                })}
+              </select>
+            )}
+            {role === 'OWNER' && (
+              <button onClick={addTier} className="btn-secondary text-xs py-1 px-3">+ Tambah Tier</button>
+            )}
+          </div>
         </div>
-        <div className="grid gap-2">
-          {tiers.map((tier, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <input
-                type="text"
-                className="input max-w-[160px]"
-                value={tier.label}
-                onChange={e => updateTier(i, 'label', e.target.value)}
-                placeholder="Label"
-              />
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  className="input w-20 text-center"
-                  value={tier.targetMargin}
-                  min={0}
-                  max={90}
-                  step={0.5}
-                  onChange={e => updateTier(i, 'targetMargin', parseFloat(e.target.value) || 0)}
-                />
-                <span className="text-slate-400 text-sm">%</span>
-              </div>
-              {i > 0 && (
-                <button onClick={() => removeTier(i)} className="text-red-500 hover:text-red-400 text-xs">✕</button>
-              )}
+
+        {/* OWNER: editable tiers */}
+        {role === 'OWNER' ? (
+          <>
+            <div className="grid gap-2">
+              {editTiers.map((tier, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    className="input max-w-[160px]"
+                    value={tier.label}
+                    onChange={e => updateTier(i, 'label', e.target.value)}
+                    placeholder="Label"
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      className="input w-20 text-center"
+                      value={tier.targetMargin}
+                      min={0}
+                      max={90}
+                      step={0.5}
+                      onChange={e => updateTier(i, 'targetMargin', parseFloat(e.target.value) || 0)}
+                    />
+                    <span className="text-slate-400 text-sm">%</span>
+                  </div>
+                  {i > 0 && (
+                    <button onClick={() => removeTier(i)} className="text-red-500 hover:text-red-400 text-xs">✕</button>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            {tiersBrandId && (
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  onClick={saveTiers}
+                  disabled={tierSaving || tierSaved}
+                  className="btn-primary text-xs py-1.5 px-4"
+                >
+                  {tierSaving ? 'Menyimpan...' : tierSaved ? '✅ Tersimpan' : `Simpan Tier ke ${tiersBrand?.nama ?? ''}`}
+                </button>
+                <span className="text-xs text-slate-500">Berlaku untuk semua staff brand ini</span>
+              </div>
+            )}
+            {!tiersBrandId && (
+              <p className="text-xs text-slate-500">Pilih brand di atas untuk mengaktifkan simpan tier</p>
+            )}
+          </>
+        ) : (
+          /* STAFF: read-only tiers */
+          <div className="flex flex-wrap gap-2">
+            {editTiers.map((tier, i) => (
+              <div key={i} className="bg-[#0a1628] border border-[#162d58] rounded-lg px-3 py-2 text-center min-w-[90px]">
+                <p className="text-xs text-slate-500 mb-0.5">{tier.label}</p>
+                <p className="text-sm font-bold text-slate-200">
+                  {tier.targetMargin === 0 ? 'BEP' : `${tier.targetMargin}%`}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Action */}
@@ -306,7 +410,6 @@ export default function CalculatorPage() {
                 <div className="text-red-400 text-sm">⚠️ {r.error}</div>
               ) : (
                 <>
-                  {/* Header */}
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <div>
                       <h3 className="text-lg font-bold text-slate-100">{r.namaProduk}</h3>
@@ -323,7 +426,6 @@ export default function CalculatorPage() {
                     )}
                   </div>
 
-                  {/* ROAS Table */}
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
@@ -366,7 +468,6 @@ export default function CalculatorPage() {
                     </table>
                   </div>
 
-                  {/* Insight */}
                   {r.roasBEP != null && r.roasAktual != null && (
                     <div className={`text-xs px-4 py-3 rounded-lg border ${
                       r.statusAktual === 'safe' ? 'bg-green-900/20 border-green-800/40 text-green-400' :
