@@ -135,7 +135,7 @@ export default function DashboardPage() {
                     <th key={i} className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                       <div>{tier.label}</div>
                       <div className="text-[10px] text-slate-600 font-normal">
-                        {tier.targetMargin === 0 ? 'BEP' : `${tier.targetMargin}%`}
+                        {tier.targetMargin === 0 ? 'DANGER' : `${tier.targetMargin}%`}
                       </div>
                     </th>
                   ))}
@@ -219,10 +219,10 @@ export default function DashboardPage() {
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-400/20 border border-red-400/50"></span> BEP (Break Even)</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-400/20 border border-yellow-400/50"></span> Margin Tipis</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-400/20 border border-blue-400/50"></span> Margin Sedang</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-400/20 border border-green-400/50"></span> Proporsional</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-400/20 border border-red-400/50"></span> DANGER</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-400/20 border border-yellow-400/50"></span> Hati Hati</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-400/20 border border-blue-400/50"></span> Good</span>
+        <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-400/20 border border-green-400/50"></span> GAS MAKSIMAL</span>
         <span className="text-slate-600 ml-auto">* Nilai = ROAS minimal agar iklan menguntungkan</span>
       </div>
     </div>

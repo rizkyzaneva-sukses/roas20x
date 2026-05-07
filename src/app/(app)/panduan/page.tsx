@@ -32,8 +32,8 @@ export default async function PanduanPage() {
           <div className="bg-[#0f2040] rounded-lg p-4 space-y-2">
             <p className="font-semibold text-slate-200">Memahami Hasil:</p>
             <ul className="list-disc list-inside space-y-1">
-              <li><span className="text-red-400 font-bold">❌ Rugi</span> — ROAS aktual di bawah BEP</li>
-              <li><span className="text-yellow-400 font-bold">⚠️ Tipis</span> — ROAS aktual mendekati BEP (margin tipis)</li>
+              <li><span className="text-red-400 font-bold">❌ Rugi</span> — ROAS aktual di bawah DANGER (titik balik modal)</li>
+              <li><span className="text-yellow-400 font-bold">⚠️ Tipis</span> — ROAS aktual mendekati DANGER (margin tipis)</li>
               <li><span className="text-green-400 font-bold">✅ Profit</span> — ROAS aktual di atas target margin</li>
             </ul>
           </div>
@@ -48,10 +48,10 @@ export default async function PanduanPage() {
                 </tr>
               </thead>
               <tbody>
-                <tr><td className="py-1">BEP</td><td>0%</td><td>Break Even Point (balik modal)</td></tr>
-                <tr><td className="py-1">Margin Tipis</td><td>5%</td><td>Profit minimal</td></tr>
-                <tr><td className="py-1">Margin Sedang</td><td>15%</td><td>Profit standar</td></tr>
-                <tr><td className="py-1">Proporsional</td><td>25%</td><td>Profit ideal</td></tr>
+                <tr><td className="py-1">DANGER</td><td>0%</td><td>Break Even Point (balik modal)</td></tr>
+                <tr><td className="py-1">Hati Hati</td><td>5%</td><td>Profit minimal</td></tr>
+                <tr><td className="py-1">Good</td><td>15%</td><td>Profit standar</td></tr>
+                <tr><td className="py-1">GAS MAKSIMAL</td><td>25%</td><td>Profit ideal</td></tr>
               </tbody>
             </table>
           </div>
@@ -231,7 +231,7 @@ export default async function PanduanPage() {
             <li>Gunakan <strong className="text-slate-200">Import Excel</strong> untuk input produk massal — lebih cepat dari manual</li>
             <li>Set <strong className="text-slate-200">Tier ROAS</strong> per brand sesuai target bisnis masing-masing</li>
             <li>Fee default = fee marketplace (Shopee/Tokopedia biasanya 15-20%)</li>
-            <li>ROAS BEP = titik balik modal. Di bawah itu = <span className="text-red-400">RUGI</span></li>
+            <li>ROAS DANGER = titik balik modal. Di bawah itu = <span className="text-red-400">RUGI</span></li>
             <li>Kalkulator bisa hitung banyak produk sekaligus — tambah baris dengan tombol +</li>
             {(role === 'OWNER' || role === 'MANAGER') && (
               <li>Bundle berguna untuk paket produk — HPP otomatis dihitung dari total item</li>

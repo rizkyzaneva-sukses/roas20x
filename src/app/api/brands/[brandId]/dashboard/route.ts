@@ -21,10 +21,10 @@ function hitungROAS(hargaJual: number, hpp: number, feePersen: number, targetMar
 }
 
 const DEFAULT_TIERS = [
-  { label: 'BEP', targetMargin: 0 },
-  { label: 'Margin Tipis', targetMargin: 5 },
-  { label: 'Margin Sedang', targetMargin: 15 },
-  { label: 'Proporsional', targetMargin: 25 },
+  { label: 'DANGER', targetMargin: 0 },
+  { label: 'Hati Hati', targetMargin: 5 },
+  { label: 'Good', targetMargin: 15 },
+  { label: 'GAS MAKSIMAL', targetMargin: 25 },
 ]
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ brandId: string }> }) {

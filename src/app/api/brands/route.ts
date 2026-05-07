@@ -40,10 +40,10 @@ export async function POST(req: NextRequest) {
   if (!nama) return NextResponse.json({ error: 'Nama brand wajib diisi' }, { status: 400 })
 
   const DEFAULT_TIERS = JSON.stringify([
-    { label: 'BEP', targetMargin: 0 },
-    { label: 'Margin Tipis', targetMargin: 5 },
-    { label: 'Margin Sedang', targetMargin: 15 },
-    { label: 'Proporsional', targetMargin: 25 },
+    { label: 'DANGER', targetMargin: 0 },
+    { label: 'Hati Hati', targetMargin: 5 },
+    { label: 'Good', targetMargin: 15 },
+    { label: 'GAS MAKSIMAL', targetMargin: 25 },
   ])
 
   const brand = await prisma.brand.create({

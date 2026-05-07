@@ -29,10 +29,10 @@ interface ProductRow {
 }
 
 const DEFAULT_TIERS: Tier[] = [
-  { label: 'BEP', targetMargin: 0 },
-  { label: 'Margin Tipis', targetMargin: 5 },
-  { label: 'Margin Sedang', targetMargin: 15 },
-  { label: 'Proporsional', targetMargin: 25 },
+  { label: 'DANGER', targetMargin: 0 },
+  { label: 'Hati Hati', targetMargin: 5 },
+  { label: 'Good', targetMargin: 15 },
+  { label: 'GAS MAKSIMAL', targetMargin: 25 },
 ]
 
 function fmt(n: number) { return 'Rp ' + n.toLocaleString('id-ID') }
@@ -74,6 +74,12 @@ export default function CalculatorPage() {
   const [results, setResults] = useState<CalcResult[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Per-row editing state for results table
+  const [editingRowIdx, setEditingRowIdx] = useState<number | null>(null)
+  const [editHargaJual, setEditHargaJual] = useState('')
+  const [rowLoading, setRowLoading] = useState<number | null>(null)
+  const [rowSaving, setRowSaving] = useState<number | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -211,6 +217,7 @@ export default function CalculatorPage() {
       const data = await res.json()
       if (!res.ok) { setError(data.error); return }
       setResults(data)
+      setEditingRowIdx(null)
     } catch {
       setError('Terjadi kesalahan. Coba lagi.')
     } finally {
@@ -218,7 +225,7 @@ export default function CalculatorPage() {
     }
   }
 
-  function reset() { setResults(null); setError('') }
+  function reset() { setResults(null); setError(''); setEditingRowIdx(null) }
 
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
@@ -262,6 +269,83 @@ export default function CalculatorPage() {
     }
     setSaving(false)
     setTimeout(() => setSaveMsg(''), 4000)
+  }
+
+  // Save single row's harga
+  async function handleSaveRow(idx: number) {
+    const row = rows[idx]
+    if (!row || !row.brandId || !row.hargaJual) return
+    if (!row.productId && !row.bundleId) return
+
+    setRowSaving(idx)
+    try {
+      const updates = [{
+        type: row.bundleId ? 'bundle' : 'produk',
+        id: (row.bundleId ?? row.productId)!,
+        hargaJual: parseFloat(row.hargaJual),
+      }]
+      const res = await fetch(`/api/brands/${row.brandId}/save-prices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates }),
+      })
+      const data = await res.json()
+      if (data.saved) {
+        setSaveMsg(`✅ Harga ${results?.[idx]?.namaProduk ?? 'produk'} tersimpan`)
+        setTimeout(() => setSaveMsg(''), 3000)
+      }
+    } catch {
+      setSaveMsg('❌ Gagal menyimpan')
+      setTimeout(() => setSaveMsg(''), 3000)
+    }
+    setRowSaving(null)
+  }
+
+  // Recalculate single row
+  async function handleCalcRow(idx: number) {
+    const row = rows[idx]
+    if (!row || !row.brandId || !row.hargaJual || !row.feePersen) return
+
+    setRowLoading(idx)
+    try {
+      const payload = {
+        products: [{
+          brandId: row.brandId,
+          productId: row.productId ?? undefined,
+          bundleId: row.bundleId ?? undefined,
+          hargaJual: parseFloat(row.hargaJual),
+          feePersen: parseFloat(row.feePersen),
+          tiers: getBrandTiers(row.brandId),
+          roasAktual: row.roasAktual ? parseFloat(row.roasAktual) : undefined,
+        }]
+      }
+      const res = await fetch('/api/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (res.ok && data[0]) {
+        setResults(prev => prev ? prev.map((r, i) => i === idx ? data[0] : r) : prev)
+      }
+    } catch { /* ignore */ }
+    setRowLoading(null)
+    setEditingRowIdx(null)
+  }
+
+  // Start editing a row's harga
+  function startEditRow(idx: number) {
+    setEditingRowIdx(idx)
+    setEditHargaJual(rows[idx]?.hargaJual ?? '')
+  }
+
+  // Confirm edit: update the row's hargaJual
+  function confirmEditRow(idx: number) {
+    const row = rows[idx]
+    if (row && editHargaJual) {
+      updateRow(row.id, 'hargaJual', editHargaJual)
+    }
+    setEditingRowIdx(null)
   }
 
   // Brands yang sedang dipilih di rows (untuk switch tier brand)
@@ -457,7 +541,7 @@ export default function CalculatorPage() {
               <div key={i} className="bg-[#0a1628] border border-[#162d58] rounded-lg px-3 py-2 text-center min-w-[90px]">
                 <p className="text-xs text-slate-500 mb-0.5">{tier.label}</p>
                 <p className="text-sm font-bold text-slate-200">
-                  {tier.targetMargin === 0 ? 'BEP' : `${tier.targetMargin}%`}
+                  {tier.targetMargin === 0 ? 'DANGER' : `${tier.targetMargin}%`}
                 </p>
               </div>
             ))}
@@ -472,94 +556,126 @@ export default function CalculatorPage() {
           {loading ? 'Menghitung...' : '🔢 Hitung ROAS'}
         </button>
         <button onClick={handleSaveHarga} className="btn-secondary px-6" disabled={saving}>
-          {saving ? 'Menyimpan...' : '💾 Simpan Harga'}
+          {saving ? 'Menyimpan...' : '💾 Simpan Semua Harga'}
         </button>
         {results && <button onClick={reset} className="btn-secondary">Reset</button>}
         {saveMsg && <span className="text-xs text-slate-300">{saveMsg}</span>}
       </div>
 
-      {/* Results */}
+      {/* Results - Compact Table */}
       {results && (
-        <div className="space-y-4">
+        <div className="card space-y-3">
           <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Hasil Kalkulasi</h2>
-          {results.map((r, i) => (
-            <div key={i} className="card space-y-4">
-              {r.error ? (
-                <div className="text-red-400 text-sm">⚠️ {r.error}</div>
-              ) : (
-                <>
-                  <div className="flex items-start justify-between flex-wrap gap-2">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-100">{r.namaProduk}</h3>
-                      <div className="text-slate-500 text-xs mt-0.5">
-                        {fmt(r.hargaJual)} · Fee {r.feePersen}% · Gross Margin {r.grossMarginPersen}%
-                      </div>
-                    </div>
-                    {r.roasAktual != null && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-400 text-sm">ROAS Aktual:</span>
-                        <span className="text-lg font-bold text-slate-100">{fmtROAS(r.roasAktual)}</span>
-                        <StatusBadge status={r.statusAktual} roas={r.roasAktual} />
-                      </div>
-                    )}
-                  </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#162d58] bg-[#060d1f]">
+                  <th className="text-left py-2.5 px-3 text-slate-500 text-xs font-semibold uppercase sticky left-0 bg-[#060d1f] z-10">Produk</th>
+                  <th className="text-center py-2.5 px-3 text-slate-500 text-xs font-semibold uppercase whitespace-nowrap">Harga Jual</th>
+                  {results[0] && !results[0].error && results[0].tiers.map((tier, i) => (
+                    <th key={i} className="text-center py-2.5 px-2 text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                      {tier.label}
+                      <div className="text-[10px] font-normal text-slate-600">{tier.targetMargin}%</div>
+                    </th>
+                  ))}
+                  <th className="text-center py-2.5 px-3 text-slate-500 text-xs font-semibold uppercase whitespace-nowrap">Status</th>
+                  <th className="text-center py-2.5 px-2 text-slate-500 text-xs font-semibold uppercase">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((r, i) => (
+                  <tr key={i} className="border-b border-[#162d58]/40 hover:bg-[#162d58]/20 transition-colors">
+                    {r.error ? (
+                      <td colSpan={99} className="py-2.5 px-3 text-red-400 text-sm">⚠️ {r.error}</td>
+                    ) : (
+                      <>
+                        {/* Product Name */}
+                        <td className="py-2.5 px-3 text-slate-200 font-medium sticky left-0 bg-[#0a1628] z-10 whitespace-nowrap">
+                          <div>{r.namaProduk}</div>
+                          <div className="text-[10px] text-slate-500">Fee {r.feePersen}% · GM {r.grossMarginPersen}%</div>
+                        </td>
 
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-[#162d58]">
-                          <th className="text-left py-2 px-3 text-slate-500 text-xs font-semibold uppercase">Tier</th>
-                          <th className="text-center py-2 px-3 text-slate-500 text-xs font-semibold uppercase">Target Margin</th>
-                          <th className="text-center py-2 px-3 text-slate-500 text-xs font-semibold uppercase">ROAS Minimal</th>
-                          {r.roasAktual != null && (
-                            <th className="text-center py-2 px-3 text-slate-500 text-xs font-semibold uppercase">Status</th>
+                        {/* Harga Jual (editable) */}
+                        <td className="py-2.5 px-3 text-center">
+                          {editingRowIdx === i ? (
+                            <div className="flex items-center gap-1 justify-center">
+                              <input
+                                type="number"
+                                className="input w-24 text-xs py-1 px-2 text-center"
+                                value={editHargaJual}
+                                onChange={e => setEditHargaJual(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') confirmEditRow(i) }}
+                                autoFocus
+                              />
+                              <button onClick={() => confirmEditRow(i)} className="text-green-400 text-xs font-bold">✓</button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-300 text-xs whitespace-nowrap">{fmt(r.hargaJual)}</span>
                           )}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {r.tiers.map((tier, ti) => {
-                          const isActualOk = r.roasAktual != null && tier.roasMinimal != null && r.roasAktual >= tier.roasMinimal
-                          return (
-                            <tr key={ti} className="border-b border-[#162d58]/40 hover:bg-[#162d58]/20">
-                              <td className="py-3 px-3 font-semibold text-slate-200">{tier.label}</td>
-                              <td className="py-3 px-3 text-center text-slate-400">
-                                {tier.targetMargin === 0 ? 'BEP' : `${tier.targetMargin}%`}
-                              </td>
-                              <td className="py-3 px-3 text-center">
-                                <ROASValue val={tier.roasMinimal} bep={r.roasBEP} />
-                              </td>
-                              {r.roasAktual != null && (
-                                <td className="py-3 px-3 text-center">
-                                  {tier.roasMinimal == null ? (
-                                    <span className="text-slate-600 text-xs">N/A</span>
-                                  ) : isActualOk ? (
-                                    <span className="text-green-400 text-xs font-bold">✅ Tercapai</span>
-                                  ) : (
-                                    <span className="text-red-400 text-xs font-bold">❌ Belum</span>
-                                  )}
-                                </td>
-                              )}
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                        </td>
 
-                  {r.roasBEP != null && r.roasAktual != null && (
-                    <div className={`text-xs px-4 py-3 rounded-lg border ${r.statusAktual === 'safe' ? 'bg-green-900/20 border-green-800/40 text-green-400' :
-                      r.statusAktual === 'warn' ? 'bg-yellow-900/20 border-yellow-800/40 text-yellow-400' :
-                        'bg-red-900/20 border-red-800/40 text-red-400'
-                      }`}>
-                      {r.statusAktual === 'safe' && `✅ ROAS aktual ${fmtROAS(r.roasAktual)} sudah di atas BEP ${fmtROAS(r.roasBEP)} — iklan ini menguntungkan.`}
-                      {r.statusAktual === 'warn' && `⚠️ ROAS aktual ${fmtROAS(r.roasAktual)} tipis di atas BEP ${fmtROAS(r.roasBEP)} — perlu dimonitor ketat.`}
-                      {r.statusAktual === 'danger' && `❌ ROAS aktual ${fmtROAS(r.roasAktual)} di bawah BEP ${fmtROAS(r.roasBEP)} — iklan ini sedang merugi.`}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
+                        {/* ROAS per tier */}
+                        {r.tiers.map((tier, ti) => (
+                          <td key={ti} className="text-center py-2.5 px-2">
+                            <ROASValue val={tier.roasMinimal} bep={r.roasBEP} />
+                          </td>
+                        ))}
+
+                        {/* Status */}
+                        <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                          {r.roasAktual != null ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-xs text-slate-400">{fmtROAS(r.roasAktual)}</span>
+                              <StatusBadge status={r.statusAktual} roas={r.roasAktual} />
+                            </div>
+                          ) : (
+                            <span className="text-slate-600 text-xs">—</span>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-2.5 px-2 text-center">
+                          <div className="flex items-center gap-1 justify-center">
+                            <button
+                              onClick={() => startEditRow(i)}
+                              className="text-[10px] px-1.5 py-1 rounded bg-blue-900/40 border border-blue-700/50 text-blue-400 hover:bg-blue-900/60 whitespace-nowrap"
+                              title="Edit Harga"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleCalcRow(i)}
+                              disabled={rowLoading === i}
+                              className="text-[10px] px-1.5 py-1 rounded bg-yellow-900/40 border border-yellow-700/50 text-yellow-400 hover:bg-yellow-900/60 whitespace-nowrap"
+                              title="Hitung Ulang"
+                            >
+                              {rowLoading === i ? '⏳' : '🔄'}
+                            </button>
+                            <button
+                              onClick={() => handleSaveRow(i)}
+                              disabled={rowSaving === i}
+                              className="text-[10px] px-1.5 py-1 rounded bg-green-900/40 border border-green-700/50 text-green-400 hover:bg-green-900/60 whitespace-nowrap"
+                              title="Simpan Harga"
+                            >
+                              {rowSaving === i ? '⏳' : '💾'}
+                            </button>
+                          </div>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap gap-3 pt-2 text-[10px] text-slate-500 border-t border-[#162d58]/40">
+            <span>✏️ Edit Harga</span>
+            <span>🔄 Hitung Ulang Baris</span>
+            <span>💾 Simpan Harga ke DB</span>
+            <span className="ml-auto">ROAS: <span className="roas-danger">Rugi</span> · <span className="roas-warn">Tipis</span> · <span className="roas-safe">Profit</span></span>
+          </div>
         </div>
       )}
     </div>
