@@ -13,17 +13,23 @@ export type SessionData = {
   user?: SessionUser;
 };
 
-export const sessionOptions: SessionOptions = {
-  cookieName: "roas20x_session",
-  password: process.env.SESSION_PASSWORD || "dev-password-change-me-please-32-chars",
-  cookieOptions: {
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-  },
-};
+const DEFAULT_SESSION_PASSWORD = "roas20x-dev-session-password-change-me-32chars";
+
+export function getSessionOptions(): SessionOptions {
+  const password = process.env.SESSION_PASSWORD?.trim() || DEFAULT_SESSION_PASSWORD;
+
+  return {
+    cookieName: "roas20x_session",
+    password,
+    cookieOptions: {
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    },
+  };
+}
 
 export async function getSession() {
-  return getIronSession<SessionData>(await cookies(), sessionOptions);
+  return getIronSession<SessionData>(await cookies(), getSessionOptions());
 }
 
 export async function requireSession() {
