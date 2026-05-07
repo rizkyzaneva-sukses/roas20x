@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  username  String   @unique
+  passwordHash String @map("password_hash")
+  role      Role
+  createdAt DateTime @default(now()) @map("created_at")
+
+  brands    UserBrand[]
+  records   KalkulasiRecord[]
+
+  @@map("users")
+}
+
+model Brand {
+  id        Int      @id @default(autoincrement())
+  nama      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users           UserBrand[]
+  produk          Produk[]
+  platform        Platform[]
+  bundlingDiskon  BundlingDiskon[]
+  marginSetting   MarginSetting?
+  records         KalkulasiRecord[]
+
+  @@map("brands")
+}
+
+model UserBrand {
+  userId  Int @map("user_id")
+  brandId Int @map("brand_id")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@id([userId, brandId])
+  @@map("user_brands")
+}
+
+model Produk {
+  id        Int      @id @default(autoincrement())
+  brandId   Int      @map("brand_id")
+  nama      String
+  hpp       Int
+  aktif     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  kalkulasiProduk KalkulasiProduk[]
+
+  @@unique([brandId, nama])
+  @@map("produk")
+}
+
+model Platform {
+  id        Int      @id @default(autoincrement())
+  brandId   Int      @map("brand_id")
+  nama      String
+  adminPct  Float    @map("admin_pct")
+  adminFlat Int      @map("admin_flat")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  brand   Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  records KalkulasiRecord[]
+
+  @@unique([brandId, nama])
+  @@map("platforms")
+}
+
+model BundlingDiskon {
+  id           Int @id @default(autoincrement())
+  brandId      Int @map("brand_id")
+  jumlahProduk Int @map("jumlah_produk")
+  diskonRp     Int @map("diskon_rp")
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, jumlahProduk])
+  @@map("bundling_diskon")
+}
+
+model MarginSetting {
+  id                  Int      @id @default(autoincrement())
+  brandId             Int      @unique @map("brand_id")
+  batasBahayaPct      Float    @map("batas_bahaya_pct")
+  batasCukupPct       Float    @map("batas_cukup_pct")
+  labelBahaya         String   @default("Bahaya") @map("label_bahaya")
+  labelCukup          String   @default("Cukup") @map("label_cukup")
+  labelProporsional   String   @default("Proporsional") @map("label_proporsional")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@map("margin_settings")
+}
+
+model KalkulasiRecord {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @map("user_id")
+  brandId            Int      @map("brand_id")
+  platformId         Int      @map("platform_id")
+  hargaJual          Int      @map("harga_jual")
+  hargaJualBersih    Int      @map("harga_jual_bersih")
+  hppEfektif         Int      @map("hpp_efektif")
+  roas               Float
+  marginPct          Float    @map("margin_pct")
+  statusRoas         String   @map("status_roas")
+  produkSnapshot     String   @map("produk_snapshot")
+  tanggalTransaksi   DateTime @map("tanggal_transaksi")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  platform Platform @relation(fields: [platformId], references: [id])
+  produk KalkulasiProduk[]
+
+  @@map("kalkulasi_records")
+}
+
+model KalkulasiProduk {
+  id          Int @id @default(autoincrement())
+  kalkulasiId Int @map("kalkulasi_id")
+  produkId    Int @map("produk_id")
+
+  kalkulasi KalkulasiRecord @relation(fields: [kalkulasiId], references: [id], onDelete: Cascade)
+  produk    Produk @relation(fields: [produkId], references: [id])
+
+  @@map("kalkulasi_produk")
+}
