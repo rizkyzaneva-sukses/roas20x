@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy-950: #060d1f;
+  --navy-900: #0a1628;
+  --navy-800: #0f2040;
+  --navy-700: #162d58;
+  --accent: #e85d26;
+  --accent-soft: #c44a1a;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+}
+
+body {
+  background-color: var(--navy-950);
+  font-family: 'JetBrains Mono', 'Geist Mono', ui-monospace, monospace;
+}
+
+@layer components {
+  .card {
+    @apply bg-[#0a1628] border border-[#162d58] rounded-xl p-6;
+  }
+
+  .btn-primary {
+    @apply bg-[#e85d26] hover:bg-[#c44a1a] text-white font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-[#162d58] hover:bg-[#1e3a6e] text-slate-200 font-semibold px-4 py-2 rounded-lg transition-colors;
+  }
+
+  .btn-danger {
+    @apply bg-red-900/40 hover:bg-red-800/60 text-red-400 font-semibold px-4 py-2 rounded-lg transition-colors border border-red-900/50;
+  }
+
+  .input {
+    @apply bg-[#060d1f] border border-[#162d58] text-slate-100 rounded-lg px-3 py-2 w-full 
+    focus:outline-none focus:border-[#e85d26] focus:ring-1 focus:ring-[#e85d26] 
+    placeholder:text-slate-600 transition-colors;
+  }
+
+  .label {
+    @apply text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1 block;
+  }
+
+  .badge-owner {
+    @apply bg-[#e85d26]/20 text-[#e85d26] text-xs px-2 py-0.5 rounded-full border border-[#e85d26]/30;
+  }
+
+  .badge-staff {
+    @apply bg-blue-900/30 text-blue-400 text-xs px-2 py-0.5 rounded-full border border-blue-900/40;
+  }
+
+  .roas-safe {
+    @apply text-green-400 font-bold;
+  }
+
+  .roas-warn {
+    @apply text-yellow-400 font-bold;
+  }
+
+  .roas-danger {
+    @apply text-red-400 font-bold;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#162d58]/50 transition-all text-sm font-medium;
+  }
+
+  .sidebar-link.active {
+    @apply text-slate-100 bg-[#162d58] border-l-2 border-[#e85d26];
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--navy-950); }
+::-webkit-scrollbar-thumb { background: var(--navy-700); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #e85d26; }
+
+/* Number input - hide arrows */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+input[type=number] { -moz-appearance: textfield; }

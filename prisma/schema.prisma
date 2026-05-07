@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int         @id @default(autoincrement())
+  nama         String
+  username     String      @unique
+  passwordHash String      @map("password_hash")
+  role         Role        @default(STAFF)
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  brands       UserBrand[]
+
+  @@map("users")
+}
+
+model Brand {
+  id             Int         @id @default(autoincrement())
+  nama           String
+  feeDefaultPersen Float     @default(18) @map("fee_default_persen")
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  users          UserBrand[]
+  products       Product[]
+
+  @@map("brands")
+}
+
+model UserBrand {
+  userId   Int   @map("user_id")
+  brandId  Int   @map("brand_id")
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand    Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@id([userId, brandId])
+  @@map("user_brands")
+}
+
+model Product {
+  id               Int      @id @default(autoincrement())
+  brandId          Int      @map("brand_id")
+  nama             String
+  hpp              BigInt
+  hargaJualDefault BigInt   @map("harga_jual_default")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  brand            Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@map("products")
+}
+
+enum Role {
+  OWNER
+  STAFF
+}
