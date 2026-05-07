@@ -9,12 +9,13 @@ ROAS Calculator adalah internal tool untuk membantu tim marketing dan owner meng
 ## 2. Requirements
 
 - **Aksesibilitas:** Web app — diakses dari berbagai device (laptop, HP) via browser
-- **Pengguna:** 2 role — OWNER (Rizky) dan STAFF (tim marketing per brand)
+- **Pengguna:** 3 role — OWNER (Rizky), MANAGER, dan USER (tim marketing per brand)
 - **Auth:** iron-session (username + password)
 - **Data Input:** Manual input via form
 - **Export:** Tidak ada di MVP
 - **Constraint khusus:**
-  - HPP **tidak boleh tampil** di UI manapun yang bisa diakses STAFF
+  - HPP **tidak boleh tampil** di UI manapun yang bisa diakses USER
+  - MANAGER memiliki akses seperti OWNER untuk brand yang di-assign, tapi tidak bisa akses User Management
   - Satu user bisa di-assign ke **lebih dari satu brand**
   - Data produk **terpisah per brand** — staff brand A tidak bisa lihat data brand B
   - Fee platform **bisa diset berbeda** per brand (bukan hardcoded)
@@ -34,24 +35,22 @@ ROAS Calculator adalah internal tool untuk membantu tim marketing dan owner meng
 - Assign/unassign user ke brand
 
 ### 3.3 User Management — MUST HAVE (OWNER only)
-- CRUD user (nama, username, password, role: OWNER/STAFF)
-- Assign user ke satu atau lebih brand
+- CRUD user (nama, username, password, role: OWNER/MANAGER/USER)
+- Assign user/manager ke satu atau lebih brand
 
 ### 3.4 Product Management — MUST HAVE
-- **OWNER:** CRUD produk per brand — nama, HPP (tersimpan terenkripsi/hidden), harga jual default
-- **STAFF:** Hanya bisa lihat nama produk dan harga jual default. HPP **tidak pernah dikirim ke frontend**
+- **OWNER & MANAGER:** CRUD produk per brand — nama, HPP (tersimpan terenkripsi/hidden), harga jual default, serta set **Diskon Bundling** pengurang HPP.
+- **USER:** Hanya bisa lihat nama produk dan harga jual default. HPP **tidak pernah dikirim ke frontend**
 
-### 3.5 ROAS Calculator — MUST HAVE (core feature)
-- Pilih brand → pilih produk (atau input produk baru sementara)
+### 3.5 ROAS Calculator & Bundling — MUST HAVE (core feature)
+- Pilih brand → pilih produk (bisa 1 atau >1 untuk bundle)
 - Input:
-  - Harga Jual (pre-filled dari default, bisa diubah)
+  - Harga Jual Total (pre-filled dari default, bisa diubah)
   - Fee Platform % (pre-filled dari default brand, bisa diubah)
-  - Target Margin % (bisa diisi bebas, bisa tambah beberapa tier)
-- Output:
-  - ROAS Minimal BEP
-  - ROAS Minimal per tier margin yang diinput
-  - Net per unit (tanpa tampilkan HPP) — opsional tampilkan ke STAFF
-- Input ROAS Aktual (dari Shopee/TikTok dashboard) → status indikator hijau/kuning/merah
+- Output Matrix ROAS berdasarkan target margin otomatis:
+  - **Bahaya**, **Tipis**, **Cukup**, **Proporsional**
+- **Logika Diskon Bundling:** Jika >1 produk dipilih, Total HPP akan otomatis dikurangi "Diskon Bundling" sesuai jumlah produk yang dipilih.
+- Hasil kalkulasi bundling ini **bisa disimpan** ke database, bisa diedit/dihapus, dan akan muncul di list Dashboard.
 
 ### 3.6 Multi-Produk Comparison — MUST HAVE
 - Bisa tambah produk A + B + C dalam satu sesi kalkulasi
@@ -66,16 +65,16 @@ ROAS Calculator adalah internal tool untuk membantu tim marketing dan owner meng
 
 ## 4. User Flow
 
-### Flow: Staff Kalkulasi ROAS
+### Flow: User Kalkulasi ROAS & Dashboard
 
-1. Staff login → diarahkan ke dashboard brand yang di-assign
+1. User login → diarahkan ke dashboard brand yang di-assign
 2. Pilih brand (jika punya akses > 1 brand)
-3. Pilih produk dari list (produk sudah diisi oleh OWNER)
-4. Harga jual ter-prefill, fee platform ter-prefill — staff bisa ubah untuk simulasi
-5. Input target margin % sesuai kebutuhan (bisa tambah beberapa tier)
-6. Klik **Hitung** → muncul tabel ROAS Minimal per tier
-7. Opsional: input ROAS aktual → lihat status indikator (✅ Profit / ⚠️ Tipis / ❌ Rugi)
-8. Opsional: tambah produk lain → compare side-by-side
+3. **Dashboard** menampilkan list produk/bundle beserta status matriks ROAS (Bahaya, Tipis, Cukup, Proporsional) dilengkapi dengan fitur Search.
+4. User masuk ke halaman **Input Produk Jual**.
+5. Pilih produk dari list (bisa pilih >1 produk untuk di-bundle).
+6. Harga jual total ter-prefill — user bisa mengubahnya.
+7. Klik **Hitung** → muncul matriks ROAS.
+8. User **Simpan** hasil bundling ini ke database agar muncul di Dashboard.
 
 ### Flow: Owner Setup Produk
 
@@ -132,7 +131,7 @@ erDiagram
         string nama
         string username
         string password_hash
-        enum role "OWNER | STAFF"
+        enum role "OWNER | MANAGER | USER"
         boolean is_active
         datetime created_at
     }
@@ -170,8 +169,10 @@ erDiagram
 |-------|--------|
 | User | Akun login semua user |
 | Brand | Master data brand (Zaneva, Be.Syari, dll) |
+| BundleDiscount | Setup diskon HPP per jumlah item dalam bundle (di-manage Owner/Manager) |
 | UserBrand | Relasi many-to-many user ↔ brand |
-| Product | Produk per brand, menyimpan HPP (tidak pernah di-expose ke STAFF) |
+| Product | Produk base per brand, menyimpan HPP (hidden untuk USER) |
+| Bundle / BundleItem | Hasil kalkulasi bundling yang disimpan oleh User |
 
 ---
 
