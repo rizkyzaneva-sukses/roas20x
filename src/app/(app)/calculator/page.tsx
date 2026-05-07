@@ -330,8 +330,8 @@ export default function CalculatorPage() {
         ))}
       </div>
 
-      {/* Target Margin Tiers */}
-      <div className="card space-y-3">
+      {/* Target Margin Tiers - hidden for USER role */}
+      {role !== 'USER' && <div className="card space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Target Margin</h2>
@@ -419,7 +419,7 @@ export default function CalculatorPage() {
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Action */}
       {error && <div className="bg-red-900/30 border border-red-800/50 text-red-400 text-sm px-4 py-3 rounded-lg">{error}</div>}

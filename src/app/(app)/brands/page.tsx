@@ -46,6 +46,10 @@ export default function BrandsPage() {
   const [importBundleResult, setImportBundleResult] = useState<{ imported: number; errors?: string[] } | null>(null)
   const bundleFileInputRef = useRef<HTMLInputElement>(null)
 
+  // Product pagination
+  const [productPage, setProductPage] = useState(1)
+  const productsPerPage = 10
+
   // Bundle form
   const [bundleForm, setBundleForm] = useState({ nama: '', hargaJualDefault: '' })
   const [bundleItems, setBundleItems] = useState<{ productId: number; qty: number }[]>([{ productId: 0, qty: 1 }])
@@ -72,6 +76,7 @@ export default function BrandsPage() {
     setSelected(detail)
     setProducts(prods)
     setBundles(Array.isArray(bunds) ? bunds : [])
+    setProductPage(1)
     setEditingTiers(false)
     setEditingFee(false)
   }
@@ -335,17 +340,39 @@ export default function BrandsPage() {
                 {products.length === 0 ? (
                   <p className="text-slate-600 text-sm">Belum ada produk. Tambah manual atau import CSV/XLS.</p>
                 ) : (
-                  <div className="space-y-1.5">
-                    {products.map(p => (
-                      <div key={p.id} className="flex items-center justify-between bg-[#060d1f] rounded-lg px-4 py-2.5">
-                        <div>
-                          <p className="font-medium text-slate-200 text-sm">{p.nama}</p>
-                          <p className="text-xs text-slate-500">HPP: {fmt(p.hpp)} · Default: {fmt(p.hargaJualDefault)}</p>
+                  <>
+                    <div className="space-y-1.5">
+                      {products.slice((productPage - 1) * productsPerPage, productPage * productsPerPage).map(p => (
+                        <div key={p.id} className="flex items-center justify-between bg-[#060d1f] rounded-lg px-4 py-2.5">
+                          <div>
+                            <p className="font-medium text-slate-200 text-sm">{p.nama}</p>
+                            <p className="text-xs text-slate-500">HPP: {fmt(p.hpp)} · Default: {fmt(p.hargaJualDefault)}</p>
+                          </div>
+                          <button onClick={() => handleDeleteProduct(p.id)} className="text-red-500 hover:text-red-400 text-xs ml-4">Hapus</button>
                         </div>
-                        <button onClick={() => handleDeleteProduct(p.id)} className="text-red-500 hover:text-red-400 text-xs ml-4">Hapus</button>
+                      ))}
+                    </div>
+                    {products.length > productsPerPage && (
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#162d58]">
+                        <p className="text-xs text-slate-500">
+                          Menampilkan {(productPage - 1) * productsPerPage + 1}–{Math.min(productPage * productsPerPage, products.length)} dari {products.length}
+                        </p>
+                        <div className="flex gap-1">
+                          <button onClick={() => setProductPage(p => Math.max(1, p - 1))} disabled={productPage === 1}
+                            className="px-2 py-1 text-xs rounded bg-[#162d58] text-slate-300 disabled:opacity-40 hover:bg-[#1e3a6e]">←</button>
+                          {Array.from({ length: Math.ceil(products.length / productsPerPage) }, (_, i) => i + 1).map(page => (
+                            <button key={page} onClick={() => setProductPage(page)}
+                              className={`px-2 py-1 text-xs rounded ${page === productPage ? 'bg-[#e85d26] text-white' : 'bg-[#162d58] text-slate-300 hover:bg-[#1e3a6e]'}`}>
+                              {page}
+                            </button>
+                          ))}
+                          <button onClick={() => setProductPage(p => Math.min(Math.ceil(products.length / productsPerPage), p + 1))}
+                            disabled={productPage === Math.ceil(products.length / productsPerPage)}
+                            className="px-2 py-1 text-xs rounded bg-[#162d58] text-slate-300 disabled:opacity-40 hover:bg-[#1e3a6e]">→</button>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
 
