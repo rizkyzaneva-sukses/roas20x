@@ -223,6 +223,56 @@ export default async function PanduanPage() {
         </section>
       )}
 
+      {/* === SECTION: Biaya Admin / Fee === */}
+      {(role === 'OWNER' || role === 'MANAGER') && (
+        <section className="card space-y-4">
+          <h2 className="text-lg font-bold text-[#e85d26]">💰 Biaya Admin (Fee Platform)</h2>
+          <p className="text-slate-300 text-sm">Penjelasan bagaimana biaya admin masuk ke perhitungan ROAS.</p>
+
+          <div className="space-y-3 text-sm text-slate-400">
+            <div className="bg-[#0f2040] rounded-lg p-4 space-y-3">
+              <p className="font-semibold text-slate-200">Apa itu Biaya Admin?</p>
+              <p>Biaya admin adalah <strong className="text-slate-200">fee yang dipotong marketplace</strong> (Shopee, Tokopedia, dll) dari setiap penjualan. Biasanya berkisar <strong className="text-slate-200">15-20%</strong> dari harga jual.</p>
+            </div>
+
+            <div className="bg-[#0f2040] rounded-lg p-4 space-y-3">
+              <p className="font-semibold text-slate-200">Bagaimana Biaya Admin Masuk Perhitungan?</p>
+              <p>Biaya admin digunakan untuk menghitung <strong className="text-slate-200">Net Revenue</strong> (pendapatan bersih):</p>
+              <div className="bg-[#060d1f] rounded-lg p-3 font-mono text-xs text-green-400 space-y-1">
+                <p>Net Revenue = Harga Jual × (1 - Fee/100)</p>
+                <p>Gross Profit = Net Revenue - HPP</p>
+                <p>Gross Margin = Gross Profit / Harga Jual × 100%</p>
+              </div>
+              <p className="mt-2">Contoh: Harga Jual Rp 200.000, Fee 18%, HPP Rp 80.000</p>
+              <div className="bg-[#060d1f] rounded-lg p-3 font-mono text-xs text-slate-300 space-y-1">
+                <p>Net Revenue = 200.000 × (1 - 18/100) = <span className="text-green-400">Rp 164.000</span></p>
+                <p>Gross Profit = 164.000 - 80.000 = <span className="text-green-400">Rp 84.000</span></p>
+                <p>Gross Margin = 84.000 / 200.000 × 100% = <span className="text-green-400">42%</span></p>
+              </div>
+            </div>
+
+            <div className="bg-[#0f2040] rounded-lg p-4 space-y-3">
+              <p className="font-semibold text-slate-200">Rumus ROAS Minimal:</p>
+              <div className="bg-[#060d1f] rounded-lg p-3 font-mono text-xs text-green-400 space-y-1">
+                <p>ROAS Minimal = Harga Jual / (Gross Profit - Target Profit)</p>
+                <p>Target Profit = Harga Jual × (Target Margin / 100)</p>
+              </div>
+              <p className="mt-2">Artinya: semakin tinggi fee admin, semakin tinggi ROAS yang dibutuhkan untuk profit.</p>
+            </div>
+
+            <div className="bg-[#0f2040] rounded-lg p-4 space-y-3">
+              <p className="font-semibold text-slate-200">Cara Set Biaya Admin:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Buka <strong className="text-slate-200">Manajemen Brand</strong></li>
+                <li>Pilih brand → klik ✏️ di samping angka fee</li>
+                <li>Ubah persentase sesuai fee marketplace kamu</li>
+                <li>Fee ini otomatis dipakai di Kalkulator ROAS</li>
+              </ol>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* === SECTION: Tips === */}
       <section className="card space-y-4">
         <h2 className="text-lg font-bold text-[#e85d26]">💡 Tips</h2>
@@ -233,6 +283,8 @@ export default async function PanduanPage() {
             <li>Fee default = fee marketplace (Shopee/Tokopedia biasanya 15-20%)</li>
             <li>ROAS DANGER = titik balik modal. Di bawah itu = <span className="text-red-400">RUGI</span></li>
             <li>Kalkulator bisa hitung banyak produk sekaligus — tambah baris dengan tombol +</li>
+            <li>Gunakan <strong className="text-slate-200">Export CSV</strong> di Manajemen Brand untuk melihat semua produk</li>
+            <li>Gunakan <strong className="text-slate-200">Edit Masal</strong> untuk update banyak produk sekaligus via file</li>
             {(role === 'OWNER' || role === 'MANAGER') && (
               <li>Bundle berguna untuk paket produk — HPP otomatis dihitung dari total item</li>
             )}

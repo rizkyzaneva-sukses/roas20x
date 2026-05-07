@@ -353,7 +353,7 @@ export default function CalculatorPage() {
   const tiersBrand = brands.find(b => b.id === tiersBrandId)
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-100">📊 Kalkulator ROAS</h1>
         <p className="text-slate-500 text-sm mt-1">Hitung minimum ROAS agar iklan menguntungkan</p>
@@ -458,96 +458,7 @@ export default function CalculatorPage() {
         ))}
       </div>
 
-      {/* Target Margin Tiers - hidden for USER role */}
-      {role !== 'USER' && <div className="card space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Target Margin</h2>
-            {tiersBrand && (
-              <span className="text-xs text-[#e85d26] font-semibold">{tiersBrand.nama}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Switch brand for tiers (if multiple brands selected) */}
-            {selectedBrandIds.length > 1 && (
-              <select
-                className="input text-xs py-1 px-2"
-                value={tiersBrandId ?? ''}
-                onChange={e => switchTierBrand(parseInt(e.target.value))}
-              >
-                {selectedBrandIds.map(id => {
-                  const b = brands.find(x => x.id === id)
-                  return <option key={id} value={id}>{b?.nama ?? id}</option>
-                })}
-              </select>
-            )}
-            {role === 'OWNER' && (
-              <button onClick={addTier} className="btn-secondary text-xs py-1 px-3">+ Tambah Tier</button>
-            )}
-          </div>
-        </div>
-
-        {/* OWNER: editable tiers */}
-        {role === 'OWNER' ? (
-          <>
-            <div className="grid gap-2">
-              {editTiers.map((tier, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    className="input max-w-[160px]"
-                    value={tier.label}
-                    onChange={e => updateTier(i, 'label', e.target.value)}
-                    placeholder="Label"
-                  />
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      className="input w-20 text-center"
-                      value={tier.targetMargin}
-                      min={0}
-                      max={90}
-                      step={0.5}
-                      onChange={e => updateTier(i, 'targetMargin', parseFloat(e.target.value) || 0)}
-                    />
-                    <span className="text-slate-400 text-sm">%</span>
-                  </div>
-                  {i > 0 && (
-                    <button onClick={() => removeTier(i)} className="text-red-500 hover:text-red-400 text-xs">✕</button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {tiersBrandId && (
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  onClick={saveTiers}
-                  disabled={tierSaving || tierSaved}
-                  className="btn-primary text-xs py-1.5 px-4"
-                >
-                  {tierSaving ? 'Menyimpan...' : tierSaved ? '✅ Tersimpan' : `Simpan Tier ke ${tiersBrand?.nama ?? ''}`}
-                </button>
-                <span className="text-xs text-slate-500">Berlaku untuk semua user brand ini</span>
-              </div>
-            )}
-            {!tiersBrandId && (
-              <p className="text-xs text-slate-500">Pilih brand di atas untuk mengaktifkan simpan tier</p>
-            )}
-          </>
-        ) : (
-          /* Non-owner: read-only tiers */
-          <div className="flex flex-wrap gap-2">
-            {editTiers.map((tier, i) => (
-              <div key={i} className="bg-[#0a1628] border border-[#162d58] rounded-lg px-3 py-2 text-center min-w-[90px]">
-                <p className="text-xs text-slate-500 mb-0.5">{tier.label}</p>
-                <p className="text-sm font-bold text-slate-200">
-                  {tier.targetMargin === 0 ? 'DANGER' : `${tier.targetMargin}%`}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>}
+      {/* Target Margin Tiers - HIDDEN (managed in Brand Management page) */}
 
       {/* Action */}
       {error && <div className="bg-red-900/30 border border-red-800/50 text-red-400 text-sm px-4 py-3 rounded-lg">{error}</div>}
@@ -564,10 +475,10 @@ export default function CalculatorPage() {
 
       {/* Results - Compact Table */}
       {results && (
-        <div className="card space-y-3">
+        <div className="card space-y-3 overflow-hidden">
           <h2 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Hasil Kalkulasi</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-4 px-4 pb-2">
+            <table className="w-full text-sm min-w-[700px]">
               <thead>
                 <tr className="border-b border-[#162d58] bg-[#060d1f]">
                   <th className="text-left py-2.5 px-3 text-slate-500 text-xs font-semibold uppercase sticky left-0 bg-[#060d1f] z-10">Produk</th>
@@ -669,12 +580,18 @@ export default function CalculatorPage() {
             </table>
           </div>
 
-          {/* Legend */}
-          <div className="flex flex-wrap gap-3 pt-2 text-[10px] text-slate-500 border-t border-[#162d58]/40">
+          {/* Legend + Save button */}
+          <div className="flex flex-wrap items-center gap-3 pt-2 text-[10px] text-slate-500 border-t border-[#162d58]/40">
             <span>✏️ Edit Harga</span>
             <span>🔄 Hitung Ulang Baris</span>
             <span>💾 Simpan Harga ke DB</span>
             <span className="ml-auto">ROAS: <span className="roas-danger">Rugi</span> · <span className="roas-warn">Tipis</span> · <span className="roas-safe">Profit</span></span>
+          </div>
+          <div className="flex items-center gap-3 pt-2">
+            <button onClick={handleSaveHarga} className="btn-primary text-xs py-2 px-5" disabled={saving}>
+              {saving ? 'Menyimpan...' : '💾 Simpan Semua Harga'}
+            </button>
+            {saveMsg && <span className="text-xs text-slate-300">{saveMsg}</span>}
           </div>
         </div>
       )}

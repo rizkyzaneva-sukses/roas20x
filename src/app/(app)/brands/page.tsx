@@ -19,7 +19,7 @@ export default function BrandsPage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [selected, setSelected] = useState<BrandDetail | null>(null)
-  const [modal, setModal] = useState<'add-brand' | 'add-product' | 'assign' | 'import' | 'import-bundle' | 'add-bundle' | 'edit-bundle' | null>(null)
+  const [modal, setModal] = useState<'add-brand' | 'add-product' | 'assign' | 'import' | 'import-bundle' | 'add-bundle' | 'edit-bundle' | 'mass-edit' | null>(null)
   const [form, setForm] = useState({ nama: '', feeDefaultPersen: '18' })
   const [productForm, setProductForm] = useState({ nama: '', hpp: '', hargaJualDefault: '' })
   const [loading, setLoading] = useState(false)
@@ -45,6 +45,11 @@ export default function BrandsPage() {
   const [importBundleFile, setImportBundleFile] = useState<File | null>(null)
   const [importBundleResult, setImportBundleResult] = useState<{ imported: number; errors?: string[] } | null>(null)
   const bundleFileInputRef = useRef<HTMLInputElement>(null)
+
+  // Mass Edit
+  const [massEditFile, setMassEditFile] = useState<File | null>(null)
+  const [massEditResult, setMassEditResult] = useState<{ updated: number; errors?: string[] } | null>(null)
+  const massEditFileRef = useRef<HTMLInputElement>(null)
 
   // Product pagination
   const [productPage, setProductPage] = useState(1)
@@ -229,6 +234,35 @@ export default function BrandsPage() {
     setSavingFee(false)
   }
 
+  // Export products to CSV
+  function handleExportProducts() {
+    if (!selected || !products.length) return
+    const header = 'nama,hpp,hargajual'
+    const rows = products.map(p => `"${p.nama}",${p.hpp},${p.hargaJualDefault}`)
+    const csv = [header, ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `produk-${selected.nama.toLowerCase().replace(/\s+/g, '-')}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Mass edit: upload edited export file to update existing products
+  async function handleMassEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selected || !massEditFile) return
+    setLoading(true)
+    const fd = new FormData()
+    fd.append('file', massEditFile)
+    const res = await fetch(`/api/brands/${selected.id}/products/mass-edit`, { method: 'POST', body: fd })
+    const result = await res.json()
+    setMassEditResult(result)
+    if (res.ok) openBrand({ ...selected, _count: { products: 0, users: 0 } } as Brand)
+    setLoading(false)
+  }
+
   const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
 
   return (
@@ -321,7 +355,7 @@ export default function BrandsPage() {
                     {(selected.tiers ?? []).map((tier, i) => (
                       <div key={i} className="bg-[#060d1f] border border-[#162d58] rounded-lg px-3 py-2 text-center min-w-[80px]">
                         <p className="text-xs text-slate-500 mb-0.5">{tier.label}</p>
-                        <p className="text-sm font-bold text-slate-200">{tier.targetMargin === 0 ? 'BEP' : `${tier.targetMargin}%`}</p>
+                        <p className="text-sm font-bold text-slate-200">{tier.targetMargin}%</p>
                       </div>
                     ))}
                   </div>
@@ -332,7 +366,9 @@ export default function BrandsPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Produk ({products.length})</h3>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <button onClick={handleExportProducts} disabled={!products.length} className="btn-secondary text-xs py-1 px-3 disabled:opacity-40">📤 Export CSV</button>
+                    <button onClick={() => { setMassEditFile(null); setMassEditResult(null); setModal('mass-edit') }} className="btn-secondary text-xs py-1 px-3">✏️ Edit Masal</button>
                     <button onClick={() => { setImportFile(null); setImportResult(null); setModal('import') }} className="btn-secondary text-xs py-1 px-3">📥 Import CSV/XLS</button>
                     <button onClick={() => setModal('add-product')} className="btn-secondary text-xs py-1 px-3">+ Produk</button>
                   </div>
@@ -580,6 +616,48 @@ export default function BrandsPage() {
             </div>
             <button type="submit" className="btn-primary w-full" disabled={loading}>{loading ? 'Menyimpan...' : 'Simpan Bundle'}</button>
           </form>
+        </Modal>
+      )}
+
+      {modal === 'mass-edit' && selected && (
+        <Modal title={`Edit Masal Produk — ${selected.nama}`} onClose={() => { setModal(null); setMassEditResult(null) }}>
+          <div className="space-y-4">
+            <div className="bg-[#060d1f] border border-[#162d58] rounded-lg p-3 text-xs text-slate-400 space-y-2">
+              <p className="font-semibold text-slate-300">Cara Edit Masal:</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Klik <strong className="text-slate-200">📤 Export CSV</strong> untuk download data produk</li>
+                <li>Edit file CSV tersebut (ubah nama, hpp, atau harga jual)</li>
+                <li>Upload kembali file yang sudah diedit di sini</li>
+              </ol>
+              <p className="mt-2 text-slate-500">Format kolom: <code className="text-slate-300">nama, hpp, hargajual</code></p>
+              <p className="text-slate-500">Produk dicocokkan berdasarkan <strong className="text-slate-300">nama</strong>. Jika nama cocok, data akan diupdate.</p>
+            </div>
+            {!massEditResult ? (
+              <form onSubmit={handleMassEdit} className="space-y-3">
+                <div>
+                  <label className="label">Upload File yang Sudah Diedit</label>
+                  <input ref={massEditFileRef} type="file" accept=".csv,.xls,.xlsx"
+                    className="input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-[#162d58] file:text-slate-300 file:text-xs"
+                    onChange={e => setMassEditFile(e.target.files?.[0] ?? null)} required />
+                </div>
+                <button type="submit" className="btn-primary w-full" disabled={loading || !massEditFile}>
+                  {loading ? 'Memproses...' : '✏️ Update Produk'}
+                </button>
+              </form>
+            ) : (
+              <div className="space-y-3">
+                <div className="bg-green-900/20 border border-green-800/40 text-green-400 text-sm px-4 py-3 rounded-lg">
+                  ✅ Berhasil update <strong>{massEditResult.updated}</strong> produk
+                </div>
+                {massEditResult.errors && massEditResult.errors.length > 0 && (
+                  <div className="bg-yellow-900/20 border border-yellow-800/40 rounded-lg p-3 text-xs text-yellow-400 space-y-1 max-h-32 overflow-y-auto">
+                    {massEditResult.errors.map((e, i) => <p key={i}>{e}</p>)}
+                  </div>
+                )}
+                <button onClick={() => { setModal(null); setMassEditResult(null) }} className="btn-primary w-full">Selesai</button>
+              </div>
+            )}
+          </div>
         </Modal>
       )}
 
