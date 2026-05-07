@@ -220,6 +220,50 @@ export default function CalculatorPage() {
 
   function reset() { setResults(null); setError('') }
 
+  const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState('')
+
+  async function handleSaveHarga() {
+    // Group rows by brandId and save hargaJual for each product/bundle
+    const updatesByBrand: Record<number, { type: string; id: number; hargaJual: number }[]> = {}
+    for (const row of rows) {
+      if (!row.brandId || !row.hargaJual) continue
+      if (!row.productId && !row.bundleId) continue
+      if (!updatesByBrand[row.brandId]) updatesByBrand[row.brandId] = []
+      updatesByBrand[row.brandId].push({
+        type: row.bundleId ? 'bundle' : 'produk',
+        id: (row.bundleId ?? row.productId)!,
+        hargaJual: parseFloat(row.hargaJual),
+      })
+    }
+
+    if (Object.keys(updatesByBrand).length === 0) {
+      setSaveMsg('⚠️ Tidak ada produk yang bisa disimpan')
+      setTimeout(() => setSaveMsg(''), 3000)
+      return
+    }
+
+    setSaving(true)
+    setSaveMsg('')
+    let totalSaved = 0
+    try {
+      for (const [brandId, updates] of Object.entries(updatesByBrand)) {
+        const res = await fetch(`/api/brands/${brandId}/save-prices`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates }),
+        })
+        const data = await res.json()
+        if (data.saved) totalSaved += data.saved
+      }
+      setSaveMsg(`✅ ${totalSaved} harga berhasil disimpan ke dashboard`)
+    } catch {
+      setSaveMsg('❌ Gagal menyimpan harga')
+    }
+    setSaving(false)
+    setTimeout(() => setSaveMsg(''), 4000)
+  }
+
   // Brands yang sedang dipilih di rows (untuk switch tier brand)
   const selectedBrandIds = [...new Set(rows.map(r => r.brandId).filter(Boolean))]
   const tiersBrand = brands.find(b => b.id === tiersBrandId)
@@ -423,11 +467,15 @@ export default function CalculatorPage() {
 
       {/* Action */}
       {error && <div className="bg-red-900/30 border border-red-800/50 text-red-400 text-sm px-4 py-3 rounded-lg">{error}</div>}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button onClick={handleHitung} className="btn-primary px-8" disabled={loading}>
           {loading ? 'Menghitung...' : '🔢 Hitung ROAS'}
         </button>
+        <button onClick={handleSaveHarga} className="btn-secondary px-6" disabled={saving}>
+          {saving ? 'Menyimpan...' : '💾 Simpan Harga'}
+        </button>
         {results && <button onClick={reset} className="btn-secondary">Reset</button>}
+        {saveMsg && <span className="text-xs text-slate-300">{saveMsg}</span>}
       </div>
 
       {/* Results */}
