@@ -13,7 +13,7 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserData[]>([])
   const [modal, setModal] = useState<'add' | 'edit' | null>(null)
   const [editing, setEditing] = useState<UserData | null>(null)
-  const [form, setForm] = useState({ nama: '', username: '', password: '', role: 'STAFF' })
+  const [form, setForm] = useState({ nama: '', username: '', password: '', role: 'USER' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -35,7 +35,7 @@ export default function UsersPage() {
     })
     const data = await res.json()
     if (!res.ok) { setError(data.error); setLoading(false); return }
-    setModal(null); setForm({ nama: '', username: '', password: '', role: 'STAFF' }); loadUsers()
+    setModal(null); setForm({ nama: '', username: '', password: '', role: 'USER' }); loadUsers()
     setLoading(false)
   }
 
@@ -70,7 +70,7 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold text-slate-100">👥 Manajemen User</h1>
           <p className="text-slate-500 text-sm mt-1">Kelola akun dan akses brand tim kamu</p>
         </div>
-        <button onClick={() => { setModal('add'); setForm({ nama: '', username: '', password: '', role: 'STAFF' }) }} className="btn-primary">+ Tambah User</button>
+        <button onClick={() => { setModal('add'); setForm({ nama: '', username: '', password: '', role: 'USER' }) }} className="btn-primary">+ Tambah User</button>
       </div>
 
       <div className="card divide-y divide-[#162d58]">
@@ -84,7 +84,7 @@ export default function UsersPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-slate-200 text-sm">{u.nama}</p>
-                  <span className={u.role === 'OWNER' ? 'badge-owner' : 'badge-staff'}>{u.role}</span>
+                  <span className={u.role === 'OWNER' ? 'badge-owner' : u.role === 'MANAGER' ? 'badge-manager' : 'badge-user'}>{u.role}</span>
                 </div>
                 <p className="text-xs text-slate-500">@{u.username}</p>
                 {u.brands.length > 0 && (
@@ -118,7 +118,8 @@ export default function UsersPage() {
               <div>
                 <label className="label">Role</label>
                 <select className="input" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))}>
-                  <option value="STAFF">STAFF</option>
+                  <option value="USER">USER</option>
+                  <option value="MANAGER">MANAGER</option>
                   <option value="OWNER">OWNER</option>
                 </select>
               </div>

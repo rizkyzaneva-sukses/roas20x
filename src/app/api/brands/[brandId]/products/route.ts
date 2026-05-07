@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 
 // GET /api/brands/:brandId/products
 // OWNER: dapat semua field termasuk hpp
-// STAFF: dapat semua field KECUALI hpp
+// USER/MANAGER: dapat semua field KECUALI hpp
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ brandId: string }> }) {
   const { session, error } = await requireAuth()
   if (error) return error

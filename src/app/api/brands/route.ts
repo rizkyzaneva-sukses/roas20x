@@ -6,7 +6,7 @@ function parseTiers(tiersJson: string) {
   try { return JSON.parse(tiersJson) } catch { return [] }
 }
 
-// GET /api/brands — OWNER: semua brand | STAFF: brand yang di-assign
+// GET /api/brands — OWNER: semua brand | USER/MANAGER: brand yang di-assign
 export async function GET() {
   const { session, error } = await requireOwner()
   if (error) {

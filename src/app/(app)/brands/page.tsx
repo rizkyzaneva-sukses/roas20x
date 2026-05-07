@@ -496,7 +496,7 @@ export default function BrandsPage() {
       {modal === 'assign' && selected && (
         <Modal title={`Assign User — ${selected.nama}`} onClose={() => setModal(null)}>
           <div className="space-y-2">
-            {allUsers.filter(u => u.role === 'STAFF').map(user => {
+            {allUsers.filter(u => u.role !== 'OWNER').map(user => {
               const isAssigned = selected.users.some(u => u.user.id === user.id)
               return (
                 <div key={user.id} className="flex items-center justify-between bg-[#060d1f] px-4 py-3 rounded-lg">
@@ -508,8 +508,8 @@ export default function BrandsPage() {
                 </div>
               )
             })}
-            {allUsers.filter(u => u.role === 'STAFF').length === 0 && (
-              <p className="text-slate-600 text-sm text-center py-4">Belum ada staff.</p>
+            {allUsers.filter(u => u.role !== 'OWNER').length === 0 && (
+              <p className="text-slate-600 text-sm text-center py-4">Belum ada user.</p>
             )}
           </div>
         </Modal>

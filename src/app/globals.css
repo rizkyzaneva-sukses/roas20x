@@ -50,7 +50,11 @@ body {
     @apply bg-[#e85d26]/20 text-[#e85d26] text-xs px-2 py-0.5 rounded-full border border-[#e85d26]/30;
   }
 
-  .badge-staff {
+  .badge-manager {
+    @apply bg-purple-900/30 text-purple-400 text-xs px-2 py-0.5 rounded-full border border-purple-900/40;
+  }
+
+  .badge-user {
     @apply bg-blue-900/30 text-blue-400 text-xs px-2 py-0.5 rounded-full border border-blue-900/40;
   }
 

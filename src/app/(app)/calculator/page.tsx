@@ -63,7 +63,7 @@ export default function CalculatorPage() {
   const [rows, setRows] = useState<ProductRow[]>([
     { id: '1', brandId: 0, productId: null, bundleId: null, hargaJual: '', feePersen: '18', roasAktual: '' }
   ])
-  const [role, setRole] = useState<'OWNER' | 'STAFF' | null>(null)
+  const [role, setRole] = useState<'OWNER' | 'MANAGER' | 'USER' | null>(null)
 
   // Tiers state: which brand's tiers are displayed, and the editable copy
   const [tiersBrandId, setTiersBrandId] = useState<number | null>(null)
@@ -399,7 +399,7 @@ export default function CalculatorPage() {
                 >
                   {tierSaving ? 'Menyimpan...' : tierSaved ? '✅ Tersimpan' : `Simpan Tier ke ${tiersBrand?.nama ?? ''}`}
                 </button>
-                <span className="text-xs text-slate-500">Berlaku untuk semua staff brand ini</span>
+                <span className="text-xs text-slate-500">Berlaku untuk semua user brand ini</span>
               </div>
             )}
             {!tiersBrandId && (
@@ -407,7 +407,7 @@ export default function CalculatorPage() {
             )}
           </>
         ) : (
-          /* STAFF: read-only tiers */
+          /* Non-owner: read-only tiers */
           <div className="flex flex-wrap gap-2">
             {editTiers.map((tier, i) => (
               <div key={i} className="bg-[#0a1628] border border-[#162d58] rounded-lg px-3 py-2 text-center min-w-[90px]">
@@ -499,11 +499,10 @@ export default function CalculatorPage() {
                   </div>
 
                   {r.roasBEP != null && r.roasAktual != null && (
-                    <div className={`text-xs px-4 py-3 rounded-lg border ${
-                      r.statusAktual === 'safe' ? 'bg-green-900/20 border-green-800/40 text-green-400' :
+                    <div className={`text-xs px-4 py-3 rounded-lg border ${r.statusAktual === 'safe' ? 'bg-green-900/20 border-green-800/40 text-green-400' :
                       r.statusAktual === 'warn' ? 'bg-yellow-900/20 border-yellow-800/40 text-yellow-400' :
-                      'bg-red-900/20 border-red-800/40 text-red-400'
-                    }`}>
+                        'bg-red-900/20 border-red-800/40 text-red-400'
+                      }`}>
                       {r.statusAktual === 'safe' && `✅ ROAS aktual ${fmtROAS(r.roasAktual)} sudah di atas BEP ${fmtROAS(r.roasBEP)} — iklan ini menguntungkan.`}
                       {r.statusAktual === 'warn' && `⚠️ ROAS aktual ${fmtROAS(r.roasAktual)} tipis di atas BEP ${fmtROAS(r.roasBEP)} — perlu dimonitor ketat.`}
                       {r.statusAktual === 'danger' && `❌ ROAS aktual ${fmtROAS(r.roasAktual)} di bawah BEP ${fmtROAS(r.roasBEP)} — iklan ini sedang merugi.`}
