@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+echo "Running pre-migration role cleanup..."
+node prisma/migrate-roles.js
+
 echo "Syncing database schema..."
 node node_modules/prisma/build/index.js db push --accept-data-loss
 
