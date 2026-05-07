@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 
 interface Brand { id: number; nama: string; feeDefaultPersen: number; tiers: Tier[] }
 interface Product { id: number; nama: string; hargaJualDefault: number }
+interface Bundle { id: number; nama: string; hargaJualDefault: number }
 interface Tier { label: string; targetMargin: number }
 interface TierResult { label: string; targetMargin: number; roasMinimal: number | null }
 interface CalcResult {
@@ -21,6 +22,7 @@ interface ProductRow {
   id: string
   brandId: number
   productId: number | null
+  bundleId: number | null
   hargaJual: string
   feePersen: string
   roasAktual: string
@@ -57,8 +59,9 @@ function ROASValue({ val, bep }: { val: number | null; bep: number | null }) {
 export default function CalculatorPage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [products, setProducts] = useState<Record<number, Product[]>>({})
+  const [bundles, setBundles] = useState<Record<number, Bundle[]>>({})
   const [rows, setRows] = useState<ProductRow[]>([
-    { id: '1', brandId: 0, productId: null, hargaJual: '', feePersen: '18', roasAktual: '' }
+    { id: '1', brandId: 0, productId: null, bundleId: null, hargaJual: '', feePersen: '18', roasAktual: '' }
   ])
   const [role, setRole] = useState<'OWNER' | 'STAFF' | null>(null)
 
@@ -86,9 +89,13 @@ export default function CalculatorPage() {
 
   const fetchProducts = useCallback(async (brandId: number) => {
     if (products[brandId]) return
-    const res = await fetch(`/api/brands/${brandId}/products`)
-    const data = await res.json()
-    setProducts(p => ({ ...p, [brandId]: data }))
+    const [prodRes, bundleRes] = await Promise.all([
+      fetch(`/api/brands/${brandId}/products`),
+      fetch(`/api/brands/${brandId}/bundles`),
+    ])
+    const [prodData, bundleData] = await Promise.all([prodRes.json(), bundleRes.json()])
+    setProducts(p => ({ ...p, [brandId]: prodData }))
+    setBundles(b => ({ ...b, [brandId]: Array.isArray(bundleData) ? bundleData : [] }))
   }, [products])
 
   function getBrandTiers(brandId: number): Tier[] {
@@ -97,7 +104,7 @@ export default function CalculatorPage() {
   }
 
   function addRow() {
-    setRows(r => [...r, { id: Date.now().toString(), brandId: 0, productId: null, hargaJual: '', feePersen: '18', roasAktual: '' }])
+    setRows(r => [...r, { id: Date.now().toString(), brandId: 0, productId: null, bundleId: null, hargaJual: '', feePersen: '18', roasAktual: '' }])
   }
 
   function removeRow(id: string) {
@@ -110,13 +117,13 @@ export default function CalculatorPage() {
       const updated = { ...row, [field]: value }
       if (field === 'brandId') {
         updated.productId = null
+        updated.bundleId = null
         updated.hargaJual = ''
         const brandId = value as number
         if (brandId) {
           const brand = brands.find(b => b.id === brandId)
           if (brand) updated.feePersen = brand.feeDefaultPersen.toString()
           fetchProducts(brandId)
-          // Set tier display to this brand if none selected yet
           if (!tiersBrandId) {
             setTiersBrandId(brandId)
             setEditTiers(brand?.tiers ?? DEFAULT_TIERS)
@@ -124,8 +131,14 @@ export default function CalculatorPage() {
         }
       }
       if (field === 'productId') {
+        updated.bundleId = null
         const prod = products[row.brandId]?.find(p => p.id === value)
         if (prod) updated.hargaJual = prod.hargaJualDefault.toString()
+      }
+      if (field === 'bundleId') {
+        updated.productId = null
+        const bundle = bundles[row.brandId]?.find(b => b.id === value)
+        if (bundle) updated.hargaJual = bundle.hargaJualDefault.toString()
       }
       return updated
     }))
@@ -182,7 +195,8 @@ export default function CalculatorPage() {
       const payload = {
         products: rows.map(r => ({
           brandId: r.brandId,
-          productId: r.productId,
+          productId: r.productId ?? undefined,
+          bundleId: r.bundleId ?? undefined,
           hargaJual: parseFloat(r.hargaJual),
           feePersen: parseFloat(r.feePersen),
           tiers: getBrandTiers(r.brandId),
@@ -247,17 +261,33 @@ export default function CalculatorPage() {
               </div>
 
               <div>
-                <label className="label">Produk</label>
+                <label className="label">Produk / Bundle</label>
                 <select
                   className="input"
-                  value={row.productId ?? ''}
-                  onChange={e => updateRow(row.id, 'productId', e.target.value ? parseInt(e.target.value) : null as unknown as number)}
+                  value={row.bundleId ? `b_${row.bundleId}` : row.productId ? `p_${row.productId}` : ''}
+                  onChange={e => {
+                    const val = e.target.value
+                    if (!val) { updateRow(row.id, 'productId', null as unknown as number); return }
+                    if (val.startsWith('b_')) updateRow(row.id, 'bundleId', parseInt(val.slice(2)))
+                    else updateRow(row.id, 'productId', parseInt(val.slice(2)))
+                  }}
                   disabled={!row.brandId}
                 >
-                  <option value="">Pilih Produk</option>
-                  {(products[row.brandId] ?? []).map(p => (
-                    <option key={p.id} value={p.id}>{p.nama}</option>
-                  ))}
+                  <option value="">Pilih Produk / Bundle</option>
+                  {(products[row.brandId] ?? []).length > 0 && (
+                    <optgroup label="Produk">
+                      {(products[row.brandId] ?? []).map(p => (
+                        <option key={`p_${p.id}`} value={`p_${p.id}`}>{p.nama}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {(bundles[row.brandId] ?? []).length > 0 && (
+                    <optgroup label="Bundle">
+                      {(bundles[row.brandId] ?? []).map(b => (
+                        <option key={`b_${b.id}`} value={`b_${b.id}`}>📦 {b.nama}</option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
 

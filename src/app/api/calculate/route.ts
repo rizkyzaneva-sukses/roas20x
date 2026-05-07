@@ -4,12 +4,13 @@ import { prisma } from '@/lib/prisma'
 
 interface TierInput {
   label: string
-  targetMargin: number // persen
+  targetMargin: number
 }
 
 interface ProductInput {
-  productId?: number        // jika dari DB
-  namaCustom?: string       // jika manual input
+  productId?: number
+  bundleId?: number
+  namaCustom?: string
   hargaJual: number
   feePersen: number
   brandId: number
@@ -20,10 +21,10 @@ interface ProductInput {
 function hitungROAS(hargaJual: number, hpp: number, feePersen: number, targetMarginPersen: number) {
   const netRevenue = hargaJual * (1 - feePersen / 100)
   const grossProfit = netRevenue - hpp
-  if (grossProfit <= 0) return null // tidak bisa untung
+  if (grossProfit <= 0) return null
   const targetProfit = hargaJual * (targetMarginPersen / 100)
   const denominator = grossProfit - targetProfit
-  if (denominator <= 0) return null // margin tidak tercapai
+  if (denominator <= 0) return null
   return hargaJual / denominator
 }
 
@@ -49,8 +50,19 @@ export async function POST(req: NextRequest) {
     let hpp: number
     let namaProduk: string
 
-    if (p.productId) {
-      // Ambil HPP dari DB - tidak pernah dikirim ke client
+    if (p.bundleId) {
+      // Bundle: HPP = sum of (component hpp * qty)
+      const bundle = await prisma.bundle.findFirst({
+        where: { id: p.bundleId, brandId: p.brandId, isActive: true },
+        select: {
+          nama: true,
+          items: { include: { product: { select: { hpp: true } } } },
+        },
+      })
+      if (!bundle) return { error: 'Bundle tidak ditemukan', bundleId: p.bundleId }
+      hpp = bundle.items.reduce((sum, item) => sum + Number(item.product.hpp) * item.qty, 0)
+      namaProduk = bundle.nama
+    } else if (p.productId) {
       const product = await prisma.product.findFirst({
         where: { id: p.productId, brandId: p.brandId, isActive: true },
         select: { hpp: true, nama: true },
@@ -59,11 +71,8 @@ export async function POST(req: NextRequest) {
       hpp = Number(product.hpp)
       namaProduk = product.nama
     } else {
-      // Manual input (OWNER only untuk keamanan — karena HPP diisi sendiri)
-      if (session!.role !== 'OWNER') {
-        return { error: 'Staff harus pilih produk dari daftar' }
-      }
-      hpp = p.productId ?? 0
+      if (session!.role !== 'OWNER') return { error: 'Staff harus pilih produk dari daftar' }
+      hpp = 0
       namaProduk = p.namaCustom ?? 'Produk Custom'
     }
 
@@ -74,7 +83,6 @@ export async function POST(req: NextRequest) {
       roasMinimal: hitungROAS(p.hargaJual, hpp, p.feePersen, tier.targetMargin),
     }))
 
-    // Net per unit (tanpa expose HPP)
     const netRevenue = p.hargaJual * (1 - p.feePersen / 100)
     const grossProfit = netRevenue - hpp
     const grossMarginPersen = (grossProfit / p.hargaJual) * 100
@@ -82,6 +90,7 @@ export async function POST(req: NextRequest) {
     return {
       namaProduk,
       productId: p.productId,
+      bundleId: p.bundleId,
       hargaJual: p.hargaJual,
       feePersen: p.feePersen,
       roasBEP: bepROAS,
