@@ -19,7 +19,7 @@ export default function BrandsPage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [selected, setSelected] = useState<BrandDetail | null>(null)
-  const [modal, setModal] = useState<'add-brand' | 'add-product' | 'assign' | 'import' | 'add-bundle' | 'edit-bundle' | null>(null)
+  const [modal, setModal] = useState<'add-brand' | 'add-product' | 'assign' | 'import' | 'import-bundle' | 'add-bundle' | 'edit-bundle' | null>(null)
   const [form, setForm] = useState({ nama: '', feeDefaultPersen: '18' })
   const [productForm, setProductForm] = useState({ nama: '', hpp: '', hargaJualDefault: '' })
   const [loading, setLoading] = useState(false)
@@ -36,10 +36,15 @@ export default function BrandsPage() {
   const [tempFee, setTempFee] = useState('')
   const [savingFee, setSavingFee] = useState(false)
 
-  // Import
+  // Import Products
   const [importFile, setImportFile] = useState<File | null>(null)
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors?: string[] } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Import Bundles
+  const [importBundleFile, setImportBundleFile] = useState<File | null>(null)
+  const [importBundleResult, setImportBundleResult] = useState<{ imported: number; errors?: string[] } | null>(null)
+  const bundleFileInputRef = useRef<HTMLInputElement>(null)
 
   // Bundle form
   const [bundleForm, setBundleForm] = useState({ nama: '', hargaJualDefault: '' })
@@ -109,6 +114,19 @@ export default function BrandsPage() {
     const res = await fetch(`/api/brands/${selected.id}/products/import`, { method: 'POST', body: fd })
     const result = await res.json()
     setImportResult(result)
+    if (res.ok) openBrand({ ...selected, _count: { products: 0, users: 0 } } as Brand)
+    setLoading(false)
+  }
+
+  async function handleImportBundle(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selected || !importBundleFile) return
+    setLoading(true)
+    const fd = new FormData()
+    fd.append('file', importBundleFile)
+    const res = await fetch(`/api/brands/${selected.id}/bundles/import`, { method: 'POST', body: fd })
+    const result = await res.json()
+    setImportBundleResult(result)
     if (res.ok) openBrand({ ...selected, _count: { products: 0, users: 0 } } as Brand)
     setLoading(false)
   }
@@ -335,8 +353,11 @@ export default function BrandsPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Bundling ({bundles.length})</h3>
-                  <button onClick={() => { setBundleForm({ nama: '', hargaJualDefault: '' }); setBundleItems([{ productId: 0, qty: 1 }]); setModal('add-bundle') }}
-                    className="btn-secondary text-xs py-1 px-3">+ Buat Bundle</button>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setImportBundleFile(null); setImportBundleResult(null); setModal('import-bundle') }} className="btn-secondary text-xs py-1 px-3">📥 Import CSV/XLS</button>
+                    <button onClick={() => { setBundleForm({ nama: '', hargaJualDefault: '' }); setBundleItems([{ productId: 0, qty: 1 }]); setModal('add-bundle') }}
+                      className="btn-secondary text-xs py-1 px-3">+ Buat Bundle</button>
+                  </div>
                 </div>
                 {bundles.length === 0 ? (
                   <p className="text-slate-600 text-sm">Belum ada bundle. Bundle = gabungan beberapa produk.</p>
@@ -441,6 +462,48 @@ export default function BrandsPage() {
                   </div>
                 )}
                 <button onClick={() => { setModal(null); setImportResult(null) }} className="btn-primary w-full">Selesai</button>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {modal === 'import-bundle' && selected && (
+        <Modal title={`Import Bundle — ${selected.nama}`} onClose={() => { setModal(null); setImportBundleResult(null) }}>
+          <div className="space-y-4">
+            <div className="bg-[#060d1f] border border-[#162d58] rounded-lg p-3 text-xs text-slate-400 space-y-1">
+              <p className="font-semibold text-slate-300">Format file (CSV / XLS / XLSX):</p>
+              <p>Kolom minimal:</p>
+              <code className="block bg-[#0a1628] p-2 rounded text-slate-300">nama, harga_jual</code>
+              <p className="text-slate-500 mt-1">Opsional (jika ingin auto-link produk):</p>
+              <code className="block bg-[#0a1628] p-2 rounded text-slate-300">produk1, qty1, produk2, qty2, ...</code>
+              <p className="text-slate-500">atau: produk (dipisah koma), qty (dipisah koma)</p>
+              <p className="text-slate-500 mt-1">Contoh sederhana (tanpa produk):</p>
+              <code className="block bg-[#0a1628] p-2 rounded text-slate-300">Set Active Top x Fiora Pants, 250000</code>
+            </div>
+            {!importBundleResult ? (
+              <form onSubmit={handleImportBundle} className="space-y-3">
+                <div>
+                  <label className="label">Pilih File</label>
+                  <input ref={bundleFileInputRef} type="file" accept=".csv,.xls,.xlsx"
+                    className="input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-[#162d58] file:text-slate-300 file:text-xs"
+                    onChange={e => setImportBundleFile(e.target.files?.[0] ?? null)} required />
+                </div>
+                <button type="submit" className="btn-primary w-full" disabled={loading || !importBundleFile}>
+                  {loading ? 'Mengimport...' : '📥 Import Bundle Sekarang'}
+                </button>
+              </form>
+            ) : (
+              <div className="space-y-3">
+                <div className="bg-green-900/20 border border-green-800/40 text-green-400 text-sm px-4 py-3 rounded-lg">
+                  ✅ Berhasil import <strong>{importBundleResult.imported}</strong> bundle
+                </div>
+                {importBundleResult.errors && importBundleResult.errors.length > 0 && (
+                  <div className="bg-yellow-900/20 border border-yellow-800/40 rounded-lg p-3 text-xs text-yellow-400 space-y-1 max-h-32 overflow-y-auto">
+                    {importBundleResult.errors.map((e, i) => <p key={i}>{e}</p>)}
+                  </div>
+                )}
+                <button onClick={() => { setModal(null); setImportBundleResult(null) }} className="btn-primary w-full">Selesai</button>
               </div>
             )}
           </div>
