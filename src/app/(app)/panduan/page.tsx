@@ -32,6 +32,7 @@ export default async function PanduanPage() {
           <div className="bg-[#0f2040] rounded-lg p-4 space-y-2">
             <p className="font-semibold text-slate-200">Memahami Hasil:</p>
             <ul className="list-disc list-inside space-y-1">
+              <li><span className="text-emerald-400 font-bold">Harga Bersih</span> — Harga jual setelah dipotong biaya admin (fee platform)</li>
               <li><span className="text-red-400 font-bold">❌ Rugi</span> — ROAS aktual di bawah DANGER (titik balik modal)</li>
               <li><span className="text-yellow-400 font-bold">⚠️ Tipis</span> — ROAS aktual mendekati DANGER (margin tipis)</li>
               <li><span className="text-green-400 font-bold">✅ Profit</span> — ROAS aktual di atas target margin</li>
