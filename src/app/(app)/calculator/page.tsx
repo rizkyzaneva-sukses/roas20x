@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface Brand { id: number; nama: string; feeDefaultPersen: number; tiers: Tier[] }
 interface Product { id: number; nama: string; hargaJualDefault: number }
@@ -37,6 +37,75 @@ const DEFAULT_TIERS: Tier[] = [
 
 function fmt(n: number) { return 'Rp ' + n.toLocaleString('id-ID') }
 function fmtROAS(n: number | null) { return n == null ? '—' : n.toFixed(2) + 'x' }
+
+// Searchable dropdown component
+function SearchableSelect({
+  options,
+  value,
+  onChange,
+  disabled,
+  placeholder = 'Cari produk...'
+}: {
+  options: { value: string; label: string; group?: string }[]
+  value: string
+  onChange: (val: string) => void
+  disabled?: boolean
+  placeholder?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const filtered = search.trim()
+    ? options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+    : options
+
+  const selectedLabel = options.find(o => o.value === value)?.label ?? ''
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        ref={inputRef}
+        type="text"
+        className="input w-full"
+        placeholder={disabled ? 'Pilih brand dulu' : placeholder}
+        disabled={disabled}
+        value={open ? search : selectedLabel}
+        onChange={e => { setSearch(e.target.value); if (!open) setOpen(true) }}
+        onFocus={() => { setOpen(true); setSearch('') }}
+      />
+      {open && !disabled && (
+        <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto bg-[#0a1628] border border-[#162d58] rounded-lg shadow-xl">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-slate-500">Tidak ditemukan</div>
+          ) : (
+            filtered.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-[#162d58]/60 transition-colors ${opt.value === value ? 'bg-[#162d58]/40 text-blue-400' : 'text-slate-300'}`}
+                onClick={() => { onChange(opt.value); setOpen(false); setSearch('') }}
+              >
+                {opt.group && <span className="text-[10px] text-slate-500 mr-1">[{opt.group}]</span>}
+                {opt.label}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function StatusBadge({ status, roas }: { status: string | null; roas: number | null }) {
   if (!status || roas == null) return null
@@ -390,33 +459,20 @@ export default function CalculatorPage() {
 
               <div>
                 <label className="label">Produk / Bundle</label>
-                <select
-                  className="input"
+                <SearchableSelect
+                  disabled={!row.brandId}
                   value={row.bundleId ? `b_${row.bundleId}` : row.productId ? `p_${row.productId}` : ''}
-                  onChange={e => {
-                    const val = e.target.value
+                  placeholder="🔍 Cari produk / bundle..."
+                  options={[
+                    ...(products[row.brandId] ?? []).map(p => ({ value: `p_${p.id}`, label: p.nama, group: 'Produk' })),
+                    ...(bundles[row.brandId] ?? []).map(b => ({ value: `b_${b.id}`, label: `📦 ${b.nama}`, group: 'Bundle' })),
+                  ]}
+                  onChange={(val) => {
                     if (!val) { updateRow(row.id, 'productId', null as unknown as number); return }
                     if (val.startsWith('b_')) updateRow(row.id, 'bundleId', parseInt(val.slice(2)))
                     else updateRow(row.id, 'productId', parseInt(val.slice(2)))
                   }}
-                  disabled={!row.brandId}
-                >
-                  <option value="">Pilih Produk / Bundle</option>
-                  {(products[row.brandId] ?? []).length > 0 && (
-                    <optgroup label="Produk">
-                      {(products[row.brandId] ?? []).map(p => (
-                        <option key={`p_${p.id}`} value={`p_${p.id}`}>{p.nama}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {(bundles[row.brandId] ?? []).length > 0 && (
-                    <optgroup label="Bundle">
-                      {(bundles[row.brandId] ?? []).map(b => (
-                        <option key={`b_${b.id}`} value={`b_${b.id}`}>📦 {b.nama}</option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
+                />
               </div>
 
               <div>
