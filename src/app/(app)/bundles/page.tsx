@@ -211,99 +211,101 @@ export default function BundlesPage() {
     }
   }
 
-  // Bundle form component (shared between add and edit)
-  const BundleFormContent = ({ onSubmit, submitLabel }: { onSubmit: (e: React.FormEvent) => void; submitLabel: string }) => (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div>
-        <label className="label">Nama Bundle</label>
-        <input
-          className="input"
-          placeholder="contoh: Paket Hemat A"
-          value={bundleForm.nama}
-          onChange={e => setBundleForm(f => ({ ...f, nama: e.target.value }))}
-          required
-        />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="label mb-0">Produk dalam Bundle</label>
-          <button type="button" onClick={addBundleItem} className="text-xs text-[#e85d26] hover:text-[#ff7a45]">
-            + Tambah Produk
-          </button>
+  // Bundle form JSX helper (not a component — avoids remount/focus loss)
+  function renderBundleForm(onSubmit: (e: React.FormEvent) => void, submitLabel: string) {
+    return (
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div>
+          <label className="label">Nama Bundle</label>
+          <input
+            className="input"
+            placeholder="contoh: Paket Hemat A"
+            value={bundleForm.nama}
+            onChange={e => setBundleForm(f => ({ ...f, nama: e.target.value }))}
+            required
+          />
         </div>
-        <div className="space-y-2">
-          {bundleItems.map((item, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <select
-                className="input flex-1"
-                value={item.productId || ''}
-                onChange={e => updateBundleItem(idx, 'productId', parseInt(e.target.value) || 0)}
-              >
-                <option value="">Pilih Produk</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.nama} — {fmt(p.hargaJualDefault)}
-                  </option>
-                ))}
-              </select>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-slate-500">×</span>
-                <input
-                  type="number"
-                  min="1"
-                  className="input w-16 text-center"
-                  value={item.qty}
-                  onChange={e => updateBundleItem(idx, 'qty', parseInt(e.target.value) || 1)}
-                />
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="label mb-0">Produk dalam Bundle</label>
+            <button type="button" onClick={addBundleItem} className="text-xs text-[#e85d26] hover:text-[#ff7a45]">
+              + Tambah Produk
+            </button>
+          </div>
+          <div className="space-y-2">
+            {bundleItems.map((item, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <select
+                  className="input flex-1"
+                  value={item.productId || ''}
+                  onChange={e => updateBundleItem(idx, 'productId', parseInt(e.target.value) || 0)}
+                >
+                  <option value="">Pilih Produk</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.nama} — {fmt(p.hargaJualDefault)}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-slate-500">×</span>
+                  <input
+                    type="number"
+                    min="1"
+                    className="input w-16 text-center"
+                    value={item.qty}
+                    onChange={e => updateBundleItem(idx, 'qty', parseInt(e.target.value) || 1)}
+                  />
+                </div>
+                {bundleItems.length > 1 && (
+                  <button type="button" onClick={() => removeBundleItem(idx)} className="text-red-500 hover:text-red-400 text-sm">
+                    ✕
+                  </button>
+                )}
               </div>
-              {bundleItems.length > 1 && (
-                <button type="button" onClick={() => removeBundleItem(idx)} className="text-red-500 hover:text-red-400 text-sm">
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
+          {bundleItems.some(i => i.productId > 0) && (
+            <p className="text-xs text-slate-500 mt-2">
+              Total harga produk: <span className="text-slate-300 font-medium">{fmt(calcTotalHarga())}</span>
+            </p>
+          )}
         </div>
-        {bundleItems.some(i => i.productId > 0) && (
-          <p className="text-xs text-slate-500 mt-2">
-            Total harga produk: <span className="text-slate-300 font-medium">{fmt(calcTotalHarga())}</span>
-          </p>
-        )}
-      </div>
 
-      <div>
-        <label className="label">Harga Jual Bundle (Rp)</label>
-        <input
-          type="number"
-          className="input"
-          placeholder="contoh: 150000"
-          value={bundleForm.hargaJualDefault}
-          onChange={e => setBundleForm(f => ({ ...f, hargaJualDefault: e.target.value }))}
-          required
-        />
-        {bundleForm.hargaJualDefault && calcTotalHarga() > 0 && (
-          <p className="text-xs mt-1">
-            {parseInt(bundleForm.hargaJualDefault) < calcTotalHarga() ? (
-              <span className="text-green-400">
-                Diskon {fmt(calcTotalHarga() - parseInt(bundleForm.hargaJualDefault))} ({((1 - parseInt(bundleForm.hargaJualDefault) / calcTotalHarga()) * 100).toFixed(1)}% lebih murah)
-              </span>
-            ) : parseInt(bundleForm.hargaJualDefault) === calcTotalHarga() ? (
-              <span className="text-slate-500">Sama dengan total harga produk</span>
-            ) : (
-              <span className="text-yellow-400">
-                Harga bundle lebih tinggi dari total produk (+{fmt(parseInt(bundleForm.hargaJualDefault) - calcTotalHarga())})
-              </span>
-            )}
-          </p>
-        )}
-      </div>
+        <div>
+          <label className="label">Harga Jual Bundle (Rp)</label>
+          <input
+            type="number"
+            className="input"
+            placeholder="contoh: 150000"
+            value={bundleForm.hargaJualDefault}
+            onChange={e => setBundleForm(f => ({ ...f, hargaJualDefault: e.target.value }))}
+            required
+          />
+          {bundleForm.hargaJualDefault && calcTotalHarga() > 0 && (
+            <p className="text-xs mt-1">
+              {parseInt(bundleForm.hargaJualDefault) < calcTotalHarga() ? (
+                <span className="text-green-400">
+                  Diskon {fmt(calcTotalHarga() - parseInt(bundleForm.hargaJualDefault))} ({((1 - parseInt(bundleForm.hargaJualDefault) / calcTotalHarga()) * 100).toFixed(1)}% lebih murah)
+                </span>
+              ) : parseInt(bundleForm.hargaJualDefault) === calcTotalHarga() ? (
+                <span className="text-slate-500">Sama dengan total harga produk</span>
+              ) : (
+                <span className="text-yellow-400">
+                  Harga bundle lebih tinggi dari total produk (+{fmt(parseInt(bundleForm.hargaJualDefault) - calcTotalHarga())})
+                </span>
+              )}
+            </p>
+          )}
+        </div>
 
-      <button type="submit" className="btn-primary w-full" disabled={formLoading}>
-        {formLoading ? 'Menyimpan...' : submitLabel}
-      </button>
-    </form>
-  )
+        <button type="submit" className="btn-primary w-full" disabled={formLoading}>
+          {formLoading ? 'Menyimpan...' : submitLabel}
+        </button>
+      </form>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -443,14 +445,14 @@ export default function BundlesPage() {
       {/* Add Bundle Modal */}
       {modal === 'add' && (
         <Modal title="Buat Bundle Baru" onClose={() => setModal(null)}>
-          <BundleFormContent onSubmit={handleAddBundle} submitLabel="📦 Buat Bundle" />
+          {renderBundleForm(handleAddBundle, '📦 Buat Bundle')}
         </Modal>
       )}
 
       {/* Edit Bundle Modal */}
       {modal === 'edit' && editingBundle && (
         <Modal title={`Edit Bundle — ${editingBundle.nama}`} onClose={() => { setModal(null); setEditingBundle(null) }}>
-          <BundleFormContent onSubmit={handleEditBundle} submitLabel="💾 Simpan Perubahan" />
+          {renderBundleForm(handleEditBundle, '💾 Simpan Perubahan')}
         </Modal>
       )}
     </div>
