@@ -1,32 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireOwner } from '@/lib/auth'
+import { requireAuth, requireOwner } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 function parseTiers(tiersJson: string) {
   try { return JSON.parse(tiersJson) } catch { return [] }
 }
 
-// GET /api/brands — OWNER: semua brand | USER/MANAGER: brand yang di-assign
+// GET /api/brands — OWNER: all brands | MANAGER: assigned brands (with full data) | USER: assigned brands (basic)
 export async function GET() {
-  const { session, error } = await requireOwner()
-  if (error) {
-    const { getSession } = await import('@/lib/auth')
-    const sess = await getSession()
-    if (!sess.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { session, error } = await requireAuth()
+  if (error) return error
+
+  if (session!.role === 'OWNER') {
+    // OWNER sees all brands with full data
     const brands = await prisma.brand.findMany({
-      where: { id: { in: sess.brandIds }, isActive: true },
+      where: { isActive: true },
       orderBy: { nama: 'asc' },
-      select: { id: true, nama: true, feeDefaultPersen: true, tiersJson: true },
+      include: {
+        _count: { select: { products: { where: { isActive: true } }, users: true } },
+      },
     })
     return NextResponse.json(brands.map(b => ({ ...b, tiers: parseTiers(b.tiersJson) })))
   }
 
+  if (session!.role === 'MANAGER') {
+    // MANAGER sees assigned brands with full data (like OWNER but limited to assigned)
+    const brands = await prisma.brand.findMany({
+      where: { id: { in: session!.brandIds }, isActive: true },
+      orderBy: { nama: 'asc' },
+      include: {
+        _count: { select: { products: { where: { isActive: true } }, users: true } },
+      },
+    })
+    return NextResponse.json(brands.map(b => ({ ...b, tiers: parseTiers(b.tiersJson) })))
+  }
+
+  // USER sees assigned brands with basic data only
   const brands = await prisma.brand.findMany({
-    where: { isActive: true },
+    where: { id: { in: session!.brandIds }, isActive: true },
     orderBy: { nama: 'asc' },
-    include: {
-      _count: { select: { products: { where: { isActive: true } }, users: true } },
-    },
+    select: { id: true, nama: true, feeDefaultPersen: true, tiersJson: true },
   })
   return NextResponse.json(brands.map(b => ({ ...b, tiers: parseTiers(b.tiersJson) })))
 }

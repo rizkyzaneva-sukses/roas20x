@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireOwner } from '@/lib/auth'
+import { requireOwnerOrManager, canAccessBrand } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import * as XLSX from 'xlsx'
 
-// POST /api/brands/:brandId/bundles/import — OWNER only
+// POST /api/brands/:brandId/bundles/import — OWNER or MANAGER (with brand access)
 // Accepts CSV/Excel with columns:
 //   nama (bundle name) — REQUIRED
 //   harga_jual (selling price) — REQUIRED
@@ -11,7 +11,7 @@ import * as XLSX from 'xlsx'
 //
 // OR simpler format:
 //   nama (bundle name) — REQUIRED
-//   harga_jual (selling price) — REQUIRED  
+//   harga_jual (selling price) — REQUIRED
 //   produk (comma-separated product names) — OPTIONAL
 //   qty (comma-separated quantities, default 1 each) — OPTIONAL
 //
@@ -19,11 +19,15 @@ import * as XLSX from 'xlsx'
 // Product matching is done by name (case-insensitive, partial match).
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ brandId: string }> }) {
-  const { error } = await requireOwner()
+  const { session, error } = await requireOwnerOrManager()
   if (error) return error
 
   const { brandId } = await params
   const bid = parseInt(brandId)
+
+  if (!canAccessBrand(session!, bid)) {
+    return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
+  }
 
   const formData = await req.formData()
   const file = formData.get('file') as File | null

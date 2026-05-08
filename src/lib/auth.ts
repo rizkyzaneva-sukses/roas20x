@@ -27,6 +27,17 @@ export async function requireOwner() {
   return { session, error: null }
 }
 
+export async function requireOwnerOrManager() {
+  const session = await getSession()
+  if (!session.userId) {
+    return { session: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  }
+  if (session.role !== 'OWNER' && session.role !== 'MANAGER') {
+    return { session: null, error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  }
+  return { session, error: null }
+}
+
 export function canAccessBrand(session: SessionData, brandId: number): boolean {
   if (session.role === 'OWNER') return true
   return session.brandIds.includes(brandId)

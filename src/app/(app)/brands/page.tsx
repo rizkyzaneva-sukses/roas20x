@@ -16,6 +16,7 @@ interface BrandDetail {
 
 export default function BrandsPage() {
   const router = useRouter()
+  const [role, setRole] = useState<string>('')
   const [brands, setBrands] = useState<Brand[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [selected, setSelected] = useState<BrandDetail | null>(null)
@@ -60,8 +61,14 @@ export default function BrandsPage() {
   const [bundleItems, setBundleItems] = useState<{ productId: number; qty: number }[]>([{ productId: 0, qty: 1 }])
   const [editingBundle, setEditingBundle] = useState<Bundle | null>(null)
 
+  const isOwner = role === 'OWNER'
+
   useEffect(() => {
+    fetch('/api/session').then(r => r.json()).then(sess => {
+      if (sess.role) setRole(sess.role)
+    })
     loadBrands()
+    // Only load users list if OWNER (for assign feature)
     fetch('/api/users').then(r => r.json()).then(data => { if (!data.error) setAllUsers(data) })
   }, [])
 
@@ -272,7 +279,7 @@ export default function BrandsPage() {
           <h1 className="text-2xl font-bold text-slate-100">🏷️ Manajemen Brand</h1>
           <p className="text-slate-500 text-sm mt-1">Kelola brand, produk, bundling, dan akses tim</p>
         </div>
-        <button onClick={() => setModal('add-brand')} className="btn-primary">+ Tambah Brand</button>
+        {isOwner && <button onClick={() => setModal('add-brand')} className="btn-primary">+ Tambah Brand</button>}
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
@@ -319,7 +326,7 @@ export default function BrandsPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setModal('assign')} className="btn-secondary text-xs py-1.5">👥 Assign</button>
+                  {isOwner && <button onClick={() => setModal('assign')} className="btn-secondary text-xs py-1.5">👥 Assign</button>}
                   <button onClick={() => setModal('add-product')} className="btn-primary text-xs py-1.5">+ Produk</button>
                 </div>
               </div>
@@ -449,7 +456,7 @@ export default function BrandsPage() {
                 )}
               </div>
 
-              {/* Team */}
+              {/* Team — visible to all but assign button only for OWNER */}
               <div>
                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tim yang Dapat Akses</h3>
                 {selected.users.length === 0 ? (
@@ -460,6 +467,9 @@ export default function BrandsPage() {
                       <span key={u.user.id} className="bg-[#162d58] text-slate-300 text-xs px-3 py-1 rounded-full">{u.user.nama}</span>
                     ))}
                   </div>
+                )}
+                {isOwner && (
+                  <button onClick={() => setModal('assign')} className="btn-secondary text-xs py-1 px-3 mt-2">👥 Kelola Akses</button>
                 )}
               </div>
             </div>

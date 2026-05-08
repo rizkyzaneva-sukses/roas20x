@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireOwner } from '@/lib/auth'
+import { requireOwnerOrManager, canAccessBrand } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import * as XLSX from 'xlsx'
 
-// POST /api/brands/:brandId/products/import — OWNER only
+// POST /api/brands/:brandId/products/import — OWNER or MANAGER (with brand access)
 // Accept: multipart/form-data with file field
 export async function POST(req: NextRequest, { params }: { params: Promise<{ brandId: string }> }) {
-  const { error } = await requireOwner()
+  const { session, error } = await requireOwnerOrManager()
   if (error) return error
 
   const { brandId } = await params
   const bid = parseInt(brandId)
+
+  if (!canAccessBrand(session!, bid)) {
+    return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
+  }
 
   const formData = await req.formData()
   const file = formData.get('file') as File | null

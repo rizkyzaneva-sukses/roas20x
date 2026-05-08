@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireOwner } from '@/lib/auth'
+import { requireOwnerOrManager, canAccessBrand } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+// PUT /api/brands/:brandId/products/:productId — OWNER or MANAGER
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ brandId: string; productId: string }> }) {
-  const { error } = await requireOwner()
+  const { session, error } = await requireOwnerOrManager()
   if (error) return error
-  const { productId } = await params
+  const { brandId, productId } = await params
+  const bid = parseInt(brandId)
+
+  if (!canAccessBrand(session!, bid)) {
+    return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
+  }
+
   const body = await req.json()
 
   const product = await prisma.product.update({
@@ -23,10 +30,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ bran
   })
 }
 
+// DELETE /api/brands/:brandId/products/:productId — OWNER or MANAGER
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ brandId: string; productId: string }> }) {
-  const { error } = await requireOwner()
+  const { session, error } = await requireOwnerOrManager()
   if (error) return error
-  const { productId } = await params
+  const { brandId, productId } = await params
+  const bid = parseInt(brandId)
+
+  if (!canAccessBrand(session!, bid)) {
+    return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
+  }
+
   await prisma.product.update({ where: { id: parseInt(productId) }, data: { isActive: false } })
   return NextResponse.json({ ok: true })
 }
