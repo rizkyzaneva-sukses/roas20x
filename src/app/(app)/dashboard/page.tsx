@@ -134,9 +134,11 @@ export default function DashboardPage() {
                   {tiers.map((tier, i) => (
                     <th key={i} className="text-center py-3 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                       <div>{tier.label}</div>
-                      <div className="text-[10px] text-slate-600 font-normal">
-                        {tier.targetMargin === 0 ? 'DANGER' : `${tier.targetMargin}%`}
-                      </div>
+                      {session?.role === 'ADMIN' && (
+                        <div className="text-[10px] text-slate-600 font-normal">
+                          {tier.targetMargin === 0 ? 'DANGER' : `${tier.targetMargin}%`}
+                        </div>
+                      )}
                     </th>
                   ))}
                 </tr>
