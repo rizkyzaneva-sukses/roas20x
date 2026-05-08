@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, requireOwner, canAccessBrand } from '@/lib/auth'
+import { requireAuth, canAccessBrand } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // GET /api/brands/:brandId/bundles
@@ -44,12 +44,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ bra
   })))
 }
 
-// POST /api/brands/:brandId/bundles — OWNER only
+// POST /api/brands/:brandId/bundles — All authenticated users with brand access
 export async function POST(req: NextRequest, { params }: { params: Promise<{ brandId: string }> }) {
-  const { error } = await requireOwner()
+  const { session, error } = await requireAuth()
   if (error) return error
   const { brandId } = await params
   const bid = parseInt(brandId)
+
+  if (!canAccessBrand(session!, bid)) {
+    return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 })
+  }
+
+  const isOwner = session!.role === 'OWNER'
 
   const { nama, hargaJualDefault, items } = await req.json()
 
@@ -78,13 +84,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bra
     id: bundle.id,
     nama: bundle.nama,
     hargaJualDefault: Number(bundle.hargaJualDefault),
-    hpp: bundle.items.reduce((sum, item) => sum + Number(item.product.hpp) * item.qty, 0),
+    ...(isOwner ? {
+      hpp: bundle.items.reduce((sum, item) => sum + Number(item.product.hpp) * item.qty, 0),
+    } : {}),
     items: bundle.items.map(item => ({
       id: item.id,
       productId: item.productId,
       productNama: item.product.nama,
       qty: item.qty,
-      hpp: Number(item.product.hpp),
+      ...(isOwner ? { hpp: Number(item.product.hpp) } : {}),
     })),
   }, { status: 201 })
 }
