@@ -270,6 +270,22 @@ export default function BrandsPage() {
     setLoading(false)
   }
 
+  async function handleDeleteAllProducts() {
+    if (!selected) return
+    if (!confirm(`⚠️ HAPUS SEMUA ${products.length} produk dan bundle di brand "${selected.nama}"?\n\nAksi ini tidak bisa dibatalkan!`)) return
+    setLoading(true)
+    const res = await fetch('/api/admin/delete-all-products', { method: 'DELETE' })
+    if (res.ok) {
+      const data = await res.json()
+      alert(`✅ Berhasil menghapus ${data.productsDeleted} produk beserta semua bundle.`)
+      openBrand({ ...selected, _count: { products: 0, users: 0 } } as Brand)
+      loadBrands()
+    } else {
+      alert('❌ Gagal menghapus produk')
+    }
+    setLoading(false)
+  }
+
   const fmt = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
 
   return (
@@ -378,6 +394,9 @@ export default function BrandsPage() {
                     <button onClick={() => { setMassEditFile(null); setMassEditResult(null); setModal('mass-edit') }} className="btn-secondary text-xs py-1 px-3">✏️ Edit Masal</button>
                     <button onClick={() => { setImportFile(null); setImportResult(null); setModal('import') }} className="btn-secondary text-xs py-1 px-3">📥 Import CSV/XLS</button>
                     <button onClick={() => setModal('add-product')} className="btn-secondary text-xs py-1 px-3">+ Produk</button>
+                    {isOwner && products.length > 0 && (
+                      <button onClick={handleDeleteAllProducts} className="text-xs py-1 px-3 rounded-lg bg-red-900/30 border border-red-700/40 text-red-400 hover:bg-red-900/50 transition-colors">🗑️ Hapus Semua</button>
+                    )}
                   </div>
                 </div>
                 {products.length === 0 ? (
